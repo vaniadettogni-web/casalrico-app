@@ -2,10 +2,11 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, AreaChart, Area } from "recharts";
 
 const C = {
-  bg:"#07101f", card:"#0f1a2e", border:"#1a2d4a",
+  bg:"#0F0F1A", card:"#161320", border:"#2b2440",
   green:"#10b981", red:"#ef4444", blue:"#3b82f6",
   yellow:"#f59e0b", purple:"#8b5cf6", cyan:"#06b6d4", orange:"#f97316",
-  text:"#f1f5f9", muted:"#4e6680", sub:"#7a9ab5",
+  gold:"#C8A84B", goldSoft:"#E8D4A0",
+  text:"#F0E6D2", muted:"#8a8095", sub:"#c9bfa8",
 };
 
 const CATS = {
@@ -96,18 +97,27 @@ async function askClaude(messages, sys) {
 
 // -- UI primitives --
 const Card = ({children, style={}}) => (
-  <div style={{background:C.card, border:"1px solid "+C.border, borderRadius:16, padding:18, ...style}}>
+  <div style={{
+    background:"linear-gradient(165deg, #1a1628, #141020)",
+    border:"1px solid rgba(200,168,75,0.09)",
+    borderRadius:22, padding:20,
+    boxShadow:"0 14px 34px -20px rgba(0,0,0,0.65)",
+    ...style,
+  }}>
     {children}
   </div>
 );
 
 const Pill = ({active, onClick, children}) => (
   <button onClick={onClick} style={{
-    background: active ? C.green : "transparent",
-    color: active ? "#fff" : C.muted,
-    border: "1px solid " + (active ? C.green : C.border),
-    borderRadius: 999, padding:"5px 12px", fontSize:12,
-    fontWeight: 600, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0,
+    background: active ? "rgba(200,168,75,0.12)" : "transparent",
+    color: active ? C.gold : C.muted,
+    border: "none",
+    borderBottom: "2px solid " + (active ? C.gold : "transparent"),
+    borderRadius: "10px 10px 0 0",
+    padding:"7px 13px", fontSize:12.5,
+    fontWeight: 700, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0,
+    transition:"all 0.15s ease", letterSpacing:0.1,
   }}>
     {children}
   </button>
@@ -115,15 +125,16 @@ const Pill = ({active, onClick, children}) => (
 
 const Bdg = ({color, children}) => (
   <span style={{
-    background: color+"22", color, borderRadius:999,
-    padding:"1px 7px", fontSize:10, fontWeight:700,
+    background: color+"16", color, borderRadius: 7,
+    padding:"2px 7px", fontSize:9.5, fontWeight:700,
+    letterSpacing:0.3, textTransform:"uppercase",
   }}>
     {children}
   </span>
 );
 
 const Lbl = ({children}) => (
-  <div style={{fontSize:10, color:C.muted, fontWeight:700, textTransform:"uppercase", letterSpacing:1, marginBottom:3}}>
+  <div style={{fontSize:10, color:C.muted, fontWeight:700, textTransform:"uppercase", letterSpacing:1.2, marginBottom:4}}>
     {children}
   </div>
 );
@@ -131,28 +142,29 @@ const Lbl = ({children}) => (
 // -- TxForm outside App to prevent keyboard flicker --
 function TxForm({f, setF, onSave, onCancel, title}) {
   const inp = {
-    background:"#0d1f38", border:"1px solid #1a2d4a", borderRadius:10,
-    padding:"9px 12px", color:"#f1f5f9", fontSize:13, width:"100%",
+    background:"#100d1a", border:"1px solid rgba(200,168,75,0.14)", borderRadius:12,
+    padding:"10px 13px", color:"#F0E6D2", fontSize:13, width:"100%",
     outline:"none", boxSizing:"border-box",
   };
   const sel = {...inp, cursor:"pointer"};
   const btn = (bg, col="#fff") => ({
-    background:bg, color:col, border:"none", borderRadius:10,
-    padding:"9px 0", fontWeight:700, fontSize:12, cursor:"pointer", flex:1,
+    background:bg, color:col, border:"none", borderRadius:13,
+    padding:"10px 0", fontWeight:700, fontSize:12.5, letterSpacing:0.15, cursor:"pointer", flex:1,
   });
 
   return (
     <div style={{
-      background:"#0f1a2e", border:"1px solid #1a2d4a", borderRadius:20,
-      padding:20, width:"100%", maxWidth:460, margin:"auto",
+      background:"linear-gradient(165deg, #1c1830, #14111d)", border:"1px solid rgba(200,168,75,0.12)", borderRadius:24,
+      padding:22, width:"100%", maxWidth:460, margin:"auto",
       maxHeight:"92vh", overflowY:"auto",
+      boxShadow:"0 24px 60px -20px rgba(0,0,0,0.7)",
     }}>
-      <div style={{fontWeight:800, fontSize:16, marginBottom:14, color:"#f1f5f9"}}>{title}</div>
+      <div style={{fontWeight:800, fontSize:17, marginBottom:16, color:"#F0E6D2", fontFamily:"'Fraunces', serif"}}>{title}</div>
 
       <div style={{display:"flex", gap:5, marginBottom:12}}>
         {[["despesa","Despesa","#ef4444"],["receita","Receita","#10b981"],["investimento","Invest.","#3b82f6"]].map(([t,l,col]) => (
           <button key={t} onClick={() => setF(x => ({...x, type:t}))}
-            style={{...btn(f.type===t ? col : "#0d1f38", f.type===t ? "#fff" : "#4e6680")}}>
+            style={{...btn(f.type===t ? col : "#100d1a", f.type===t ? "#fff" : "#8a8095")}}>
             {l}
           </button>
         ))}
@@ -271,7 +283,7 @@ function TxForm({f, setF, onSave, onCancel, title}) {
               </div>
             )}
 
-            <div style={{display:"flex", gap:14, padding:"8px 12px", background:"#0d1f38", borderRadius:10}}>
+            <div style={{display:"flex", gap:14, padding:"8px 12px", background:"#100d1a", borderRadius:10}}>
               <label style={{display:"flex", gap:6, alignItems:"center", cursor:"pointer", fontSize:13}}>
                 <input
                   type="checkbox"
@@ -279,7 +291,7 @@ function TxForm({f, setF, onSave, onCancel, title}) {
                   onChange={e => setF(x => ({...x, fixed:e.target.checked}))}
                   style={{width:14, height:14}}
                 />
-                <span style={{color:"#7a9ab5"}}>Gasto fixo</span>
+                <span style={{color:"#c9bfa8"}}>Gasto fixo</span>
               </label>
               <label style={{display:"flex", gap:6, alignItems:"center", cursor:"pointer", fontSize:13}}>
                 <input
@@ -377,7 +389,7 @@ function TxForm({f, setF, onSave, onCancel, title}) {
         )}
 
         <div style={{display:"flex", gap:8, marginTop:4}}>
-          <button onClick={onCancel} style={{...btn("#0d1f38","#4e6680"), border:"1px solid #1a2d4a"}}>Cancelar</button>
+          <button onClick={onCancel} style={{...btn("#100d1a","#8a8095"), border:"1px solid #1a2d4a"}}>Cancelar</button>
           <button onClick={onSave} style={btn(C.green)}>Salvar</button>
         </div>
       </div>
@@ -395,6 +407,7 @@ export default function App() {
   const [txs,        setTxs]        = useState(() => load("cr_txs", []));
   const [fixos,      setFixos]      = useState(() => load("cr_fixos", []));
   const [goals,      setGoals]      = useState(() => load("cr_goals", []));
+  const [hideValues, setHideValues] = useState(() => load("cr_hide", false));
   const [month,      setMonth]      = useState("2026-06");
   const [chatOpen,   setChatOpen]   = useState(false);
   const [msgs,       setMsgs]       = useState([{role:"assistant", content:"Ola Frank e Vania! Pronto para registrar.\n\nExemplos:\n- gasolina 200 debito Frank\n- salario 5000 Frank\n- farmacia 80 Vania\n\nOu envie foto do comprovante."}]);
@@ -424,11 +437,14 @@ export default function App() {
   useEffect(() => { try { localStorage.setItem("cr_txs",   JSON.stringify(txs));   } catch(_){} }, [txs]);
   useEffect(() => { try { localStorage.setItem("cr_fixos", JSON.stringify(fixos)); } catch(_){} }, [fixos]);
   useEffect(() => { try { localStorage.setItem("cr_goals", JSON.stringify(goals)); } catch(_){} }, [goals]);
+  useEffect(() => { try { localStorage.setItem("cr_hide",  JSON.stringify(hideValues)); } catch(_){} }, [hideValues]);
+
+  const fmtV = v => hideValues ? "R$ ••••" : fmt(v);
 
   const S = {
-    inp: {background:"#0d1f38", border:"1px solid "+C.border, borderRadius:10, padding:"9px 12px", color:C.text, fontSize:13, width:"100%", outline:"none", boxSizing:"border-box"},
-    sel: {background:"#0d1f38", border:"1px solid "+C.border, borderRadius:10, padding:"9px 12px", color:C.text, fontSize:13, width:"100%", outline:"none", cursor:"pointer"},
-    btn: (bg, col="#fff") => ({background:bg, color:col, border:"none", borderRadius:10, padding:"9px 18px", fontWeight:700, fontSize:13, cursor:"pointer"}),
+    inp: {background:"#100d1a", border:"1px solid rgba(200,168,75,0.14)", borderRadius:12, padding:"10px 13px", color:C.text, fontSize:13, width:"100%", outline:"none", boxSizing:"border-box"},
+    sel: {background:"#100d1a", border:"1px solid rgba(200,168,75,0.14)", borderRadius:12, padding:"10px 13px", color:C.text, fontSize:13, width:"100%", outline:"none", cursor:"pointer"},
+    btn: (bg, col="#fff") => ({background:bg, color:col, border:"none", borderRadius:14, padding:"10px 18px", fontWeight:700, fontSize:13, letterSpacing:0.15, cursor:"pointer"}),
   };
 
   const getMonthTxs = useCallback((m) => {
@@ -450,6 +466,9 @@ export default function App() {
 
   const byCat   = monthTxs.filter(t => t.type==="despesa").reduce((a,t) => {a[t.category]=(a[t.category]||0)+t.value; return a;}, {});
   const catData = Object.entries(byCat).map(([name,value]) => ({name,value})).sort((a,b) => b.value-a.value);
+
+  const fixedItems = monthTxs.filter(t => t.type==="despesa" && t.fixed).sort((a,b) => b.value-a.value);
+  const varItems    = monthTxs.filter(t => t.type==="despesa" && !t.fixed).sort((a,b) => b.value-a.value);
 
   const monthly = ALL_MONTHS.map(([m,l]) => {
     const all = getMonthTxs(m);
@@ -521,7 +540,7 @@ export default function App() {
         const base = {...t, id:Date.now(), month:(t.date||today()).slice(0,7), installments:parseInt(t.installments)||1};
         setTxs(p => [...p, ...splitInstallments(base, base.installments)]);
         const conta = CONTAS.find(c => c.id===t.banco)?.nome || "";
-        setMsgs(p => [...p, {role:"assistant", content:"OK! "+t.desc+" - "+fmt(t.value)+"\n"+t.category+(t.subcategory ? " > "+t.subcategory : "")+"\n"+t.payMethod+" - "+conta}]);
+        setMsgs(p => [...p, {role:"assistant", content:"OK! "+t.desc+" - "+fmtV(t.value)+"\n"+t.category+(t.subcategory ? " > "+t.subcategory : "")+"\n"+t.payMethod+" - "+conta}]);
         showToast(t.desc + " registrado!");
       } else {
         setMsgs(p => [...p, {role:"assistant", content: reply || "Nao entendi. Tente: gasolina 200 debito Frank"}]);
@@ -537,101 +556,97 @@ export default function App() {
   const monthLabel = m => ALL_MONTHS.find(x => x[0]===m)?.[1] || m;
 
   return (
-    <div style={{minHeight:"100vh", background:C.bg, color:C.text, fontFamily:"system-ui,sans-serif"}}>
+    <div style={{minHeight:"100vh", background:"radial-gradient(ellipse 900px 500px at 50% 0%, #1c1830 0%, #0F0F1A 55%)", color:C.text, fontFamily:"'Plus Jakarta Sans', system-ui, sans-serif"}}>
       <style>{`
         * { box-sizing:border-box; margin:0; padding:0; }
+        body, input, select, button, textarea { font-variant-numeric: tabular-nums; }
         ::-webkit-scrollbar { width:4px; height:4px; }
-        ::-webkit-scrollbar-track { background:#07101f; }
-        ::-webkit-scrollbar-thumb { background:#1a2d4a; border-radius:4px; }
+        ::-webkit-scrollbar-track { background:#0F0F1A; }
+        ::-webkit-scrollbar-thumb { background:rgba(200,168,75,0.25); border-radius:4px; }
         input { -webkit-user-select:text!important; user-select:text!important; }
-        input::placeholder { color:#2d4a6a; }
-        select option { background:#0d1f38; }
+        input::placeholder { color:#4a4258; }
+        select option { background:#100d1a; }
         @keyframes fadeup { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-        .up { animation:fadeup 0.25s ease; }
+        .up { animation:fadeup 0.3s ease; }
         @keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
         input[type=number] { -moz-appearance:textfield; }
         input[type=number]::-webkit-inner-spin-button { -webkit-appearance:none; }
       `}</style>
 
       {toast && (
-        <div style={{position:"fixed", top:16, left:"50%", transform:"translateX(-50%)", background:toast.ok?C.green:C.red, color:"#fff", padding:"10px 20px", borderRadius:999, fontWeight:700, fontSize:13, zIndex:999, whiteSpace:"nowrap", boxShadow:"0 4px 20px #0008"}}>
+        <div style={{position:"fixed", top:16, left:"50%", transform:"translateX(-50%)", background: toast.ok ? "linear-gradient(135deg,#C8A84B,#B8944A)" : C.red, color: toast.ok ? "#0F0F1A" : "#fff", padding:"10px 20px", borderRadius:14, fontWeight:700, fontSize:13, zIndex:999, whiteSpace:"nowrap", boxShadow:"0 12px 30px -10px rgba(0,0,0,0.6)"}}>
           {toast.msg}
         </div>
+
       )}
 
       {/* HEADER */}
-      <div style={{background:"linear-gradient(135deg,#020d1f,#0a1628)", padding:"12px 16px 10px", borderBottom:"1px solid "+C.border}}>
+      <div style={{padding:"18px 16px 14px", borderBottom:"1px solid rgba(200,168,75,0.1)"}}>
         <div style={{maxWidth:960, margin:"0 auto", display:"flex", justifyContent:"space-between", alignItems:"center"}}>
-          <div style={{display:"flex", gap:10, alignItems:"center"}}>
-            <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
+          <div style={{display:"flex", gap:12, alignItems:"center"}}>
+            <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
               <defs>
-                <linearGradient id="hbg" x1="0" y1="0" x2="44" y2="44" gradientUnits="userSpaceOnUse">
-                  <stop offset="0%" stopColor="#050d1a"/>
-                  <stop offset="100%" stopColor="#0a1628"/>
-                </linearGradient>
-                <linearGradient id="hroof" x1="0" y1="0" x2="44" y2="20" gradientUnits="userSpaceOnUse">
-                  <stop offset="0%" stopColor="#d97706"/>
-                  <stop offset="100%" stopColor="#fbbf24"/>
-                </linearGradient>
-                <linearGradient id="hwall" x1="0" y1="18" x2="0" y2="44" gradientUnits="userSpaceOnUse">
-                  <stop offset="0%" stopColor="#1a3050"/>
-                  <stop offset="100%" stopColor="#0f2040"/>
-                </linearGradient>
-                <linearGradient id="hcoin" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox">
-                  <stop offset="0%" stopColor="#34d399"/>
-                  <stop offset="100%" stopColor="#059669"/>
+                <radialGradient id="hbg" cx="30%" cy="25%" r="80%">
+                  <stop offset="0%" stopColor="#221c34"/>
+                  <stop offset="100%" stopColor="#100d1a"/>
+                </radialGradient>
+                <linearGradient id="hring" x1="0" y1="0" x2="42" y2="42" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#E8D4A0"/>
+                  <stop offset="100%" stopColor="#C8A84B"/>
                 </linearGradient>
               </defs>
-              <rect width="44" height="44" rx="12" fill="url(#hbg)"/>
-              <path d="M4 20 L22 5 L40 20Z" fill="url(#hroof)"/>
-              <rect x="6" y="19" width="30" height="23" rx="2" fill="url(#hwall)"/>
-              <rect x="8" y="22" width="9" height="8" rx="2" fill="#fde68a" opacity="0.9"/>
-              <rect x="25" y="22" width="9" height="8" rx="2" fill="#a7f3d0" opacity="0.9"/>
-              <rect x="17" y="28" width="10" height="14" rx="2" fill="#064e3b"/>
-              <circle cx="22" cy="33" r="3.5" fill="url(#hcoin)"/>
-              <text x="22" y="35.5" textAnchor="middle" fill="white" fontSize="3.5" fontWeight="900">R$</text>
+              <circle cx="21" cy="21" r="21" fill="url(#hbg)"/>
+              <circle cx="16.5" cy="21" r="8.4" stroke="url(#hring)" strokeWidth="1.6" fill="none"/>
+              <circle cx="25.5" cy="21" r="8.4" stroke="url(#hring)" strokeWidth="1.6" fill="none" opacity="0.55"/>
             </svg>
             <div>
-              <div style={{fontSize:18, fontWeight:900, letterSpacing:-0.3, lineHeight:1.1}}>
-                <span style={{background:"linear-gradient(90deg,#f59e0b,#fbbf24)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent"}}>Casal</span>
-                <span style={{background:"linear-gradient(90deg,#10b981,#34d399)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent"}}>Rico</span>
+              <div style={{fontSize:19, fontWeight:600, letterSpacing:-0.3, lineHeight:1.1, fontFamily:"'Fraunces', serif"}}>
+                <span style={{background:"linear-gradient(90deg,#C8A84B,#E8D4A0)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent"}}>Casal</span>
+                <span style={{color:"#F0E6D2"}}>Rico</span>
               </div>
-              <div style={{fontSize:9, color:C.muted, fontWeight:600}}>Frank & Vania 2026</div>
+              <div style={{fontSize:9, color:C.muted, fontWeight:600, letterSpacing:0.6, textTransform:"uppercase"}}>Frank & Vania · 2026</div>
             </div>
           </div>
           <div style={{display:"flex", gap:6, alignItems:"center"}}>
-            <div style={{fontSize:11, color:semaforoCol, fontWeight:700, background:semaforoCol+"18", border:"1px solid "+semaforoCol+"33", borderRadius:999, padding:"3px 9px"}}>{semaforo}</div>
-            <button onClick={() => setAddOpen(true)} style={{...S.btn(C.green), fontSize:12, padding:"7px 13px"}}>+ Lancar</button>
-            <button onClick={() => setChatOpen(true)} style={{...S.btn("#0d1f38"), fontSize:17, padding:"5px 11px", border:"1px solid "+C.border}}>AI</button>
+            <div style={{fontSize:10.5, color:semaforoCol, fontWeight:700, background:semaforoCol+"14", borderRadius:999, padding:"4px 10px"}}>{semaforo}</div>
+            <button
+              onClick={() => setHideValues(h => !h)}
+              title={hideValues ? "Mostrar valores" : "Esconder valores"}
+              style={{...S.btn("transparent"), fontSize:12, padding:"7px 12px", border:"1px solid "+(hideValues ? C.gold : "rgba(200,168,75,0.18)"), color: hideValues ? C.gold : C.sub, borderRadius:999}}
+            >
+              {hideValues ? "Oculto" : "Ver"}
+            </button>
+            <button onClick={() => setAddOpen(true)} style={{...S.btn(C.gold, "#0F0F1A"), fontSize:12, padding:"8px 15px", borderRadius:999, boxShadow:"0 8px 20px -8px rgba(200,168,75,0.5)"}}>+ Lancar</button>
+            <button onClick={() => setChatOpen(true)} style={{...S.btn("transparent"), fontSize:16, padding:"6px 12px", border:"1px solid rgba(200,168,75,0.18)", color:C.gold, borderRadius:999}}>IA</button>
           </div>
         </div>
       </div>
 
       {/* TOTAIS */}
-      <div style={{background:"#050e1c", borderBottom:"1px solid "+C.border, padding:"7px 16px", overflowX:"auto"}}>
-        <div style={{maxWidth:960, margin:"0 auto", display:"flex", gap:16, flexWrap:"nowrap"}}>
+      <div style={{background:"rgba(200,168,75,0.04)", borderBottom:"1px solid rgba(200,168,75,0.08)", padding:"8px 16px", overflowX:"auto"}}>
+        <div style={{maxWidth:960, margin:"0 auto", display:"flex", gap:18, flexWrap:"nowrap"}}>
           {[["Receitas",totalRec,C.green],["Despesas",totalDesp,C.red],["Investido",totalInv,C.blue],["Saldo",saldoGeral,saldoGeral>=0?C.green:C.red]].map(([l,v,col]) => (
-            <div key={l} style={{display:"flex", gap:5, alignItems:"center", flexShrink:0}}>
-              <div style={{width:6, height:6, borderRadius:"50%", background:col}}/>
-              <span style={{fontSize:11, color:C.muted}}>{l}:</span>
-              <span style={{fontSize:12, fontWeight:700, color:col}}>{fmt(v)}</span>
+            <div key={l} style={{display:"flex", gap:6, alignItems:"center", flexShrink:0}}>
+              <div style={{width:5, height:5, borderRadius:"50%", background:col}}/>
+              <span style={{fontSize:10.5, color:C.muted}}>{l}</span>
+              <span style={{fontSize:12, fontWeight:700, color:col}}>{fmtV(v)}</span>
             </div>
           ))}
         </div>
       </div>
 
       {/* NAV */}
-      <div style={{display:"flex", gap:4, padding:"7px 11px", background:C.card, borderBottom:"1px solid "+C.border, overflowX:"auto", position:"sticky", top:0, zIndex:100}}>
-        {[["dashboard","Inicio"],["transacoes","Lancamentos"],["fixos","Fixos"],["investimentos","Investir"],["metas","Metas"],["analise","Analise"]].map(([id,lbl]) => (
+      <div style={{display:"flex", gap:2, padding:"0 11px", background:"rgba(20,17,29,0.7)", backdropFilter:"blur(8px)", borderBottom:"1px solid rgba(200,168,75,0.08)", overflowX:"auto", position:"sticky", top:0, zIndex:100}}>
+        {[["dashboard","Inicio"],["transacoes","Lancamentos"],["relatorio","Relatorio"],["fixos","Fixos"],["investimentos","Investir"],["metas","Metas"],["analise","Analise"]].map(([id,lbl]) => (
           <Pill key={id} active={tab===id} onClick={() => setTab(id)}>{lbl}</Pill>
         ))}
       </div>
 
-      <div style={{padding:13, maxWidth:960, margin:"0 auto", paddingBottom:80}}>
+      <div style={{padding:"16px 14px", maxWidth:960, margin:"0 auto", paddingBottom:80}}>
 
         {/* MES SELECTOR */}
-        {["dashboard","transacoes","analise"].includes(tab) && (
-          <div style={{display:"flex", gap:4, marginBottom:12, overflowX:"auto", paddingBottom:4}}>
+        {["dashboard","transacoes","relatorio","analise"].includes(tab) && (
+          <div style={{display:"flex", gap:4, marginBottom:14, overflowX:"auto", paddingBottom:4}}>
             {ALL_MONTHS.map(([v,l]) => (
               <Pill key={v} active={month===v} onClick={() => setMonth(v)}>
                 {v > "2026-06" ? "* "+l : l}
@@ -643,28 +658,44 @@ export default function App() {
         {/* DASHBOARD */}
         {tab === "dashboard" && (
           <div className="up">
-            <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))", gap:10, marginBottom:11}}>
-              {[["Receitas",rec,C.green],["Despesas",desp,C.red],["Investido",inv,C.blue],["Saldo do Mes",saldo,saldo>=0?C.green:C.red]].map(([l,v,col]) => (
-                <Card key={l} style={{borderLeft:"3px solid "+col, padding:14}}>
-                  <Lbl>{l}</Lbl>
-                  <div style={{fontSize:16, fontWeight:900, color:col, marginTop:3}}>{fmt(v)}</div>
-                </Card>
-              ))}
-            </div>
+            <Card style={{marginBottom:11, padding:"24px 22px", position:"relative", overflow:"hidden"}}>
+              <div style={{position:"absolute", top:-40, right:-40, width:140, height:140, borderRadius:"50%", background:"radial-gradient(circle, rgba(200,168,75,0.14) 0%, transparent 70%)"}}/>
+              <Lbl>Saldo de {monthLabel(month)}</Lbl>
+              <div style={{
+                fontFamily:"'Fraunces', serif", fontWeight:600, fontSize:36, lineHeight:1.15,
+                color: saldo>=0 ? "#E8D4A0" : C.red, marginTop:2,
+              }}>
+                {fmtV(saldo)}
+              </div>
+              <div style={{width:56, height:2, background:"linear-gradient(90deg,#C8A84B,transparent)", margin:"12px 0 14px"}}/>
+              <div style={{display:"flex", gap:22, flexWrap:"wrap"}}>
+                {[["Receitas",rec,C.green],["Despesas",desp,C.red],["Investido",inv,C.blue]].map(([l,v,col]) => (
+                  <div key={l}>
+                    <div style={{fontSize:9.5, color:C.muted, fontWeight:700, textTransform:"uppercase", letterSpacing:0.8, marginBottom:2}}>{l}</div>
+                    <div style={{fontSize:14, fontWeight:700, color:col}}>{fmtV(v)}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
 
             <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:9, marginBottom:11}}>
-              <Card style={{borderLeft:"3px solid "+C.purple, padding:13}}>
+              <Card style={{padding:14}}>
                 <Lbl>Gastos Fixos</Lbl>
-                <div style={{fontSize:15, fontWeight:800, color:C.purple}}>{fmt(despFixed)}</div>
+                <div style={{fontSize:15, fontWeight:800, color:C.purple, marginTop:2}}>{fmtV(despFixed)}</div>
               </Card>
-              <Card style={{borderLeft:"3px solid "+C.orange, padding:13}}>
+              <Card style={{padding:14}}>
                 <Lbl>Gastos Variaveis</Lbl>
-                <div style={{fontSize:15, fontWeight:800, color:C.orange}}>{fmt(despVar)}</div>
+                <div style={{fontSize:15, fontWeight:800, color:C.orange, marginTop:2}}>{fmtV(despVar)}</div>
               </Card>
             </div>
 
             <Card style={{marginBottom:11}}>
               <div style={{fontSize:14, fontWeight:700, marginBottom:10}}>Evolucao 2026</div>
+              {hideValues ? (
+                <div style={{height:180, display:"flex", alignItems:"center", justifyContent:"center", color:C.muted, fontSize:12, background:"#100d1a", borderRadius:10}}>
+                  Grafico oculto
+                </div>
+              ) : (
               <ResponsiveContainer width="100%" height={180}>
                 <AreaChart data={monthly}>
                   <defs>
@@ -679,12 +710,13 @@ export default function App() {
                   </defs>
                   <XAxis dataKey="mes" tick={{fill:C.muted, fontSize:10}} axisLine={false} tickLine={false}/>
                   <YAxis tickFormatter={fmtS} tick={{fill:C.muted, fontSize:9}} axisLine={false} tickLine={false}/>
-                  <Tooltip formatter={v => fmt(v)} contentStyle={{background:C.card, border:"1px solid "+C.border, borderRadius:10, color:C.text}}/>
+                  <Tooltip formatter={v => fmtV(v)} contentStyle={{background:C.card, border:"1px solid "+C.border, borderRadius:10, color:C.text}}/>
                   <Legend wrapperStyle={{fontSize:11}}/>
                   <Area type="monotone" dataKey="Receitas" stroke={C.green} strokeWidth={2} fill="url(#ag)"/>
                   <Area type="monotone" dataKey="Despesas" stroke={C.red} strokeWidth={2} fill="url(#ar)"/>
                 </AreaChart>
               </ResponsiveContainer>
+              )}
             </Card>
 
             <Card style={{marginBottom:11}}>
@@ -693,21 +725,27 @@ export default function App() {
                 ? <div style={{color:C.muted, textAlign:"center", padding:20, fontSize:13}}>Sem despesas neste mes</div>
                 : (
                   <div>
+                    {hideValues ? (
+                      <div style={{height:130, display:"flex", alignItems:"center", justifyContent:"center", color:C.muted, fontSize:12, background:"#100d1a", borderRadius:10, marginBottom:9}}>
+                        Grafico oculto
+                      </div>
+                    ) : (
                     <ResponsiveContainer width="100%" height={130}>
                       <PieChart>
                         <Pie data={catData} dataKey="value" cx="50%" cy="50%" outerRadius={55} innerRadius={24}>
                           {catData.map((e,i) => <Cell key={i} fill={CAT_COLS[e.name]||"#64748b"}/>)}
                         </Pie>
-                        <Tooltip formatter={v => fmt(v)} contentStyle={{background:C.card, border:"1px solid "+C.border, borderRadius:10, color:C.text}}/>
+                        <Tooltip formatter={v => fmtV(v)} contentStyle={{background:C.card, border:"1px solid "+C.border, borderRadius:10, color:C.text}}/>
                       </PieChart>
                     </ResponsiveContainer>
+                    )}
                     {catData.map(({name,value}) => (
                       <div key={name} style={{display:"flex", justifyContent:"space-between", fontSize:11, marginBottom:3}}>
                         <div style={{display:"flex", gap:5, alignItems:"center"}}>
                           <div style={{width:7, height:7, borderRadius:"50%", background:CAT_COLS[name]||"#64748b"}}/>
                           <span style={{color:C.sub}}>{name}</span>
                         </div>
-                        <span style={{fontWeight:700}}>{fmt(value)}</span>
+                        <span style={{fontWeight:700}}>{fmtV(value)}</span>
                       </div>
                     ))}
                   </div>
@@ -735,9 +773,9 @@ export default function App() {
                       <div key={g.id} style={{marginBottom:10}}>
                         <div style={{display:"flex", justifyContent:"space-between", marginBottom:4}}>
                           <span style={{fontWeight:600, fontSize:13}}>{g.name}</span>
-                          <span style={{fontSize:11, color:C.muted}}>{fmt(g.current)} / {fmt(g.target)}</span>
+                          <span style={{fontSize:11, color:C.muted}}>{fmtV(g.current)} / {fmtV(g.target)}</span>
                         </div>
-                        <div style={{background:"#0d1f38", borderRadius:999, height:7, overflow:"hidden"}}>
+                        <div style={{background:"#100d1a", borderRadius:999, height:7, overflow:"hidden"}}>
                           <div style={{background:g.color, width:p+"%", height:"100%", borderRadius:999}}/>
                         </div>
                         <div style={{fontSize:10, color:C.muted, marginTop:2}}>{p.toFixed(0)}%</div>
@@ -785,7 +823,7 @@ export default function App() {
                 <Card key={tipo} style={{marginBottom:11}}>
                   <div style={{display:"flex", justifyContent:"space-between", marginBottom:9}}>
                     <span style={{fontWeight:700, color:cor, fontSize:14}}>{nom}</span>
-                    <span style={{fontWeight:700, color:cor}}>{fmt(total)}</span>
+                    <span style={{fontWeight:700, color:cor}}>{fmtV(total)}</span>
                   </div>
                   {items.map(t => (
                     <div key={t.id} style={{padding:"8px 0", borderBottom:"1px solid "+C.border}}>
@@ -806,7 +844,7 @@ export default function App() {
                           </div>
                         </div>
                         <div style={{display:"flex", gap:5, alignItems:"center", marginLeft:8}}>
-                          <span style={{fontWeight:700, color:cor, fontSize:13}}>{tipo==="receita"?"+":"-"}{fmt(t.value)}</span>
+                          <span style={{fontWeight:700, color:cor, fontSize:13}}>{tipo==="receita"?"+":"-"}{fmtV(t.value)}</span>
                           <button
                             onClick={() => { if(t.auto){ const nt={...t,id:Date.now(),auto:false}; setTxs(p=>[...p,nt]); openEdit(nt); } else openEdit(t); }}
                             style={{background:"#1e293b", border:"none", color:C.sub, cursor:"pointer", fontSize:11, borderRadius:7, padding:"3px 7px"}}
@@ -833,6 +871,58 @@ export default function App() {
           </div>
         )}
 
+        {/* RELATORIO */}
+        {tab === "relatorio" && (
+          <div className="up">
+            <Card style={{marginBottom:11, borderTop:"3px solid "+C.gold}}>
+              <div style={{fontSize:14, fontWeight:700, marginBottom:2, color:C.gold}}>Relatorio - {monthLabel(month)}</div>
+              <div style={{fontSize:11, color:C.muted, marginBottom:12}}>Resumo de fixos e variaveis do mes</div>
+              <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))", gap:10}}>
+                {[["Receitas",rec,C.green],["Despesas",desp,C.red],["Investido",inv,C.blue],["Saldo",saldo,saldo>=0?C.green:C.red]].map(([l,v,col]) => (
+                  <div key={l} style={{textAlign:"center"}}>
+                    <Lbl>{l}</Lbl>
+                    <div style={{fontSize:14, fontWeight:800, color:col}}>{fmtV(v)}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10}}>
+              <Card style={{borderTop:"3px solid "+C.purple, padding:14}}>
+                <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10, gap:6}}>
+                  <span style={{fontWeight:800, fontSize:13, color:C.purple}}>Fixos</span>
+                  <span style={{fontWeight:800, fontSize:13, color:C.purple}}>{fmtV(despFixed)}</span>
+                </div>
+                {fixedItems.length === 0
+                  ? <div style={{color:C.muted, fontSize:12, textAlign:"center", padding:14}}>Sem gastos fixos</div>
+                  : fixedItems.map(t => (
+                      <div key={t.id} style={{display:"flex", justifyContent:"space-between", gap:6, padding:"7px 0", borderBottom:"1px solid "+C.border}}>
+                        <span style={{fontSize:12, color:C.sub}}>{t.desc}</span>
+                        <span style={{fontSize:12, fontWeight:700, whiteSpace:"nowrap"}}>{fmtV(t.value)}</span>
+                      </div>
+                    ))
+                }
+              </Card>
+
+              <Card style={{borderTop:"3px solid "+C.orange, padding:14}}>
+                <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10, gap:6}}>
+                  <span style={{fontWeight:800, fontSize:13, color:C.orange}}>Variaveis</span>
+                  <span style={{fontWeight:800, fontSize:13, color:C.orange}}>{fmtV(despVar)}</span>
+                </div>
+                {varItems.length === 0
+                  ? <div style={{color:C.muted, fontSize:12, textAlign:"center", padding:14}}>Sem gastos variaveis</div>
+                  : varItems.map(t => (
+                      <div key={t.id} style={{display:"flex", justifyContent:"space-between", gap:6, padding:"7px 0", borderBottom:"1px solid "+C.border}}>
+                        <span style={{fontSize:12, color:C.sub}}>{t.desc}</span>
+                        <span style={{fontSize:12, fontWeight:700, whiteSpace:"nowrap"}}>{fmtV(t.value)}</span>
+                      </div>
+                    ))
+                }
+              </Card>
+            </div>
+          </div>
+        )}
+
         {/* FIXOS */}
         {tab === "fixos" && (
           <div className="up">
@@ -843,7 +933,7 @@ export default function App() {
             <Card style={{marginBottom:14}}>
               <div style={{display:"flex", justifyContent:"space-between", marginBottom:10}}>
                 <span style={{fontWeight:700, color:C.purple}}>Total fixo mensal</span>
-                <span style={{fontWeight:700, color:C.purple}}>{fmt(fixos.reduce((s,f) => s+f.value, 0))}</span>
+                <span style={{fontWeight:700, color:C.purple}}>{fmtV(fixos.reduce((s,f) => s+f.value, 0))}</span>
               </div>
               {fixos.length === 0 && (
                 <div style={{color:C.muted, textAlign:"center", padding:20, fontSize:13}}>
@@ -859,7 +949,7 @@ export default function App() {
                     </div>
                   </div>
                   <div style={{display:"flex", gap:6, alignItems:"center"}}>
-                    <span style={{fontWeight:700, color:C.purple}}>{fmt(f.value)}</span>
+                    <span style={{fontWeight:700, color:C.purple}}>{fmtV(f.value)}</span>
                     <button
                       onClick={() => { const v=prompt("Novo valor para "+f.desc+":"); if(v&&!isNaN(parseFloat(v))) setFixos(p=>p.map((x,j)=>j===i?{...x,value:parseFloat(v)}:x)); }}
                       style={{background:"#1e293b", border:"none", color:C.sub, cursor:"pointer", fontSize:11, borderRadius:7, padding:"3px 7px"}}
@@ -887,7 +977,7 @@ export default function App() {
                       <div style={{fontSize:10, color:C.muted, marginTop:2}}>{new Date(t.date+"T12:00").toLocaleDateString("pt-BR")} - {monthLabel(t.month)}</div>
                     </div>
                     <div style={{display:"flex", gap:6, alignItems:"center"}}>
-                      <span style={{fontWeight:700, color:C.yellow}}>{fmt(t.value)}</span>
+                      <span style={{fontWeight:700, color:C.yellow}}>{fmtV(t.value)}</span>
                       <button onClick={() => openEdit(t)} style={{background:"#1e293b", border:"none", color:C.sub, cursor:"pointer", fontSize:11, borderRadius:7, padding:"3px 7px"}}>Edit</button>
                       <button onClick={() => setTxs(p => p.filter(x => x.id!==t.id))} style={{background:"none", border:"none", color:C.muted, cursor:"pointer", fontSize:15}}>x</button>
                     </div>
@@ -905,11 +995,12 @@ export default function App() {
               <div style={{fontSize:15, fontWeight:700}}>Investimentos</div>
               <button onClick={() => {setForm({...EMPTY_FORM, type:"investimento"}); setAddOpen(true);}} style={{...S.btn(C.blue), fontSize:12, padding:"7px 13px"}}>+ Novo</button>
             </div>
-            <Card style={{marginBottom:11}}>
+            <Card style={{marginBottom:11, padding:"22px 22px"}}>
               <Lbl>Patrimonio Total Investido</Lbl>
-              <div style={{fontSize:30, fontWeight:900, color:C.green}}>
-                {fmt(txs.filter(t => t.type==="investimento").reduce((s,t) => s+t.value, 0))}
+              <div style={{fontFamily:"'Fraunces', serif", fontWeight:600, fontSize:30, color:"#E8D4A0", marginTop:2}}>
+                {fmtV(txs.filter(t => t.type==="investimento").reduce((s,t) => s+t.value, 0))}
               </div>
+              <div style={{width:56, height:2, background:"linear-gradient(90deg,#C8A84B,transparent)", marginTop:12}}/>
             </Card>
             {txs.filter(t => t.type==="investimento").length === 0
               ? (
@@ -930,7 +1021,7 @@ export default function App() {
                       </div>
                     </div>
                     <div style={{display:"flex", gap:5, alignItems:"center"}}>
-                      <span style={{fontWeight:700, color:C.blue, fontSize:15}}>{fmt(t.value)}</span>
+                      <span style={{fontWeight:700, color:C.blue, fontSize:15}}>{fmtV(t.value)}</span>
                       <button onClick={() => openEdit(t)} style={{background:"#1e293b", border:"none", color:C.sub, cursor:"pointer", fontSize:11, borderRadius:7, padding:"3px 7px"}}>Edit</button>
                       <button onClick={() => {setTxs(p => p.filter(x => x.id!==t.id)); showToast("Removido", false);}} style={{background:"none", border:"none", color:C.muted, cursor:"pointer", fontSize:14}}>x</button>
                     </div>
@@ -968,18 +1059,18 @@ export default function App() {
                       <button onClick={() => setGoals(p => p.filter(x => x.id!==g.id))} style={{background:"none", border:"none", color:C.muted, cursor:"pointer", fontSize:15}}>x</button>
                     </div>
                   </div>
-                  <div style={{background:"#0d1f38", borderRadius:999, height:11, overflow:"hidden", marginBottom:9}}>
+                  <div style={{background:"#100d1a", borderRadius:999, height:11, overflow:"hidden", marginBottom:9}}>
                     <div style={{background:g.color, width:p+"%", height:"100%", borderRadius:999}}/>
                   </div>
                   <div style={{display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:9, textAlign:"center", marginBottom:9}}>
-                    <div><Lbl>Acumulado</Lbl><div style={{fontWeight:700, color:g.color, fontSize:13}}>{fmt(g.current)}</div></div>
-                    <div><Lbl>Meta</Lbl><div style={{fontWeight:700, fontSize:13}}>{fmt(g.target)}</div></div>
-                    <div><Lbl>Poupar/Mes</Lbl><div style={{fontWeight:700, color:C.yellow, fontSize:13}}>{fmt(pm)}</div></div>
+                    <div><Lbl>Acumulado</Lbl><div style={{fontWeight:700, color:g.color, fontSize:13}}>{fmtV(g.current)}</div></div>
+                    <div><Lbl>Meta</Lbl><div style={{fontWeight:700, fontSize:13}}>{fmtV(g.target)}</div></div>
+                    <div><Lbl>Poupar/Mes</Lbl><div style={{fontWeight:700, color:C.yellow, fontSize:13}}>{fmtV(pm)}</div></div>
                   </div>
                   <Lbl>Atualizar valor acumulado</Lbl>
                   <input
                     type="number"
-                    placeholder={"Atual: "+fmt(g.current)}
+                    placeholder={"Atual: "+fmtV(g.current)}
                     style={{...S.inp, marginTop:3}}
                     onKeyDown={e => {
                       if (e.key === "Enter") {
@@ -1004,12 +1095,16 @@ export default function App() {
               <div style={{fontSize:14, fontWeight:700, marginBottom:11}}>Maiores Gastos - {monthLabel(month)}</div>
               {catData.length === 0
                 ? <div style={{color:C.muted, textAlign:"center", padding:20}}>Sem despesas neste periodo</div>
-                : (
+                : hideValues ? (
+                  <div style={{height:160, display:"flex", alignItems:"center", justifyContent:"center", color:C.muted, fontSize:12, background:"#100d1a", borderRadius:10}}>
+                    Grafico oculto
+                  </div>
+                ) : (
                   <ResponsiveContainer width="100%" height={Math.max(160, catData.length*33)}>
                     <BarChart data={catData} layout="vertical">
                       <XAxis type="number" tickFormatter={fmtS} tick={{fill:C.muted, fontSize:10}} axisLine={false} tickLine={false}/>
                       <YAxis type="category" dataKey="name" tick={{fill:C.sub, fontSize:11}} axisLine={false} tickLine={false} width={110}/>
-                      <Tooltip formatter={v => fmt(v)} contentStyle={{background:C.card, border:"1px solid "+C.border, borderRadius:10, color:C.text}}/>
+                      <Tooltip formatter={v => fmtV(v)} contentStyle={{background:C.card, border:"1px solid "+C.border, borderRadius:10, color:C.text}}/>
                       <Bar dataKey="value" radius={[0,7,7,0]}>
                         {catData.map((e,i) => <Cell key={i} fill={CAT_COLS[e.name]||"#64748b"}/>)}
                       </Bar>
@@ -1020,16 +1115,22 @@ export default function App() {
             </Card>
             <Card>
               <div style={{fontSize:14, fontWeight:700, marginBottom:10}}>Receitas x Despesas 2026</div>
+              {hideValues ? (
+                <div style={{height:175, display:"flex", alignItems:"center", justifyContent:"center", color:C.muted, fontSize:12, background:"#100d1a", borderRadius:10}}>
+                  Grafico oculto
+                </div>
+              ) : (
               <ResponsiveContainer width="100%" height={175}>
                 <BarChart data={monthly}>
                   <XAxis dataKey="mes" tick={{fill:C.muted, fontSize:10}} axisLine={false} tickLine={false}/>
                   <YAxis tickFormatter={fmtS} tick={{fill:C.muted, fontSize:9}} axisLine={false} tickLine={false}/>
-                  <Tooltip formatter={v => fmt(v)} contentStyle={{background:C.card, border:"1px solid "+C.border, borderRadius:10, color:C.text}}/>
+                  <Tooltip formatter={v => fmtV(v)} contentStyle={{background:C.card, border:"1px solid "+C.border, borderRadius:10, color:C.text}}/>
                   <Legend wrapperStyle={{fontSize:11}}/>
                   <Bar dataKey="Receitas" fill={C.green} radius={[4,4,0,0]}/>
                   <Bar dataKey="Despesas" fill={C.red} radius={[4,4,0,0]}/>
                 </BarChart>
               </ResponsiveContainer>
+              )}
             </Card>
           </div>
         )}
@@ -1086,7 +1187,7 @@ export default function App() {
                 </div>
               </div>
               <div style={{display:"flex", gap:8, marginTop:4}}>
-                <button onClick={() => setFixoOpen(false)} style={{...S.btn("#0d1f38",C.muted), flex:1, border:"1px solid "+C.border}}>Cancelar</button>
+                <button onClick={() => setFixoOpen(false)} style={{...S.btn("#100d1a",C.muted), flex:1, border:"1px solid "+C.border}}>Cancelar</button>
                 <button
                   onClick={() => {
                     if (!fixoForm.desc||!fixoForm.value) return;
@@ -1136,7 +1237,7 @@ export default function App() {
                 </div>
               </div>
               <div style={{display:"flex", gap:8, marginTop:4}}>
-                <button onClick={() => setGoalOpen(false)} style={{...S.btn("#0d1f38",C.muted), flex:1, border:"1px solid "+C.border}}>Cancelar</button>
+                <button onClick={() => setGoalOpen(false)} style={{...S.btn("#100d1a",C.muted), flex:1, border:"1px solid "+C.border}}>Cancelar</button>
                 <button
                   onClick={() => {
                     if (!gForm.name||!gForm.target||!gForm.deadline) return;
@@ -1155,24 +1256,26 @@ export default function App() {
 
       {/* CHAT IA */}
       {chatOpen && (
-        <div style={{position:"fixed", inset:0, zIndex:300, display:"flex", flexDirection:"column", background:C.bg}}>
-          <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 16px", background:C.card, borderBottom:"1px solid "+C.border}}>
+        <div style={{position:"fixed", inset:0, zIndex:300, display:"flex", flexDirection:"column", background:"radial-gradient(ellipse 900px 500px at 50% 0%, #1c1830 0%, #0F0F1A 55%)"}}>
+          <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 18px", background:"rgba(22,19,32,0.8)", borderBottom:"1px solid rgba(200,168,75,0.1)"}}>
             <div>
-              <div style={{fontWeight:800}}>Assistente Financeiro</div>
-              <div style={{fontSize:10, color:C.green}}>CasalRico App</div>
+              <div style={{fontWeight:700, fontFamily:"'Fraunces', serif", fontSize:16}}>Assistente Financeiro</div>
+              <div style={{fontSize:10, color:C.gold, fontWeight:600, letterSpacing:0.4, textTransform:"uppercase"}}>CasalRico App</div>
             </div>
             <button onClick={() => setChatOpen(false)} style={{background:"none", border:"none", color:C.muted, fontSize:22, cursor:"pointer"}}>x</button>
           </div>
 
-          <div style={{flex:1, overflowY:"auto", padding:12, display:"flex", flexDirection:"column", gap:9}}>
+          <div style={{flex:1, overflowY:"auto", padding:14, display:"flex", flexDirection:"column", gap:9}}>
             {msgs.map((m,i) => (
               <div key={i} style={{display:"flex", justifyContent:m.role==="user"?"flex-end":"flex-start"}}>
                 <div style={{
                   maxWidth:"85%", padding:"10px 14px",
                   borderRadius: m.role==="user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-                  background: m.role==="user" ? C.green : C.card,
-                  border: m.role==="user" ? "none" : "1px solid "+C.border,
+                  background: m.role==="user" ? "linear-gradient(135deg,#C8A84B,#B8944A)" : "linear-gradient(165deg, #1a1628, #141020)",
+                  color: m.role==="user" ? "#0F0F1A" : C.text,
+                  border: m.role==="user" ? "none" : "1px solid rgba(200,168,75,0.1)",
                   fontSize:13, lineHeight:1.55, whiteSpace:"pre-wrap",
+                  boxShadow: m.role==="user" ? "none" : "0 10px 24px -16px rgba(0,0,0,0.6)",
                 }}>
                   {m.content}
                 </div>
@@ -1180,21 +1283,21 @@ export default function App() {
             ))}
             {aiLoading && (
               <div style={{display:"flex", gap:5, padding:10, alignItems:"center"}}>
-                <div style={{width:14, height:14, border:"2px solid "+C.green+"33", borderTop:"2px solid "+C.green, borderRadius:"50%", animation:"spin 0.8s linear infinite"}}/>
+                <div style={{width:14, height:14, border:"2px solid rgba(200,168,75,0.25)", borderTop:"2px solid "+C.gold, borderRadius:"50%", animation:"spin 0.8s linear infinite"}}/>
                 <span style={{fontSize:12, color:C.muted}}>Processando...</span>
               </div>
             )}
             <div ref={endRef}/>
           </div>
 
-          <div style={{padding:"8px 12px 0", background:C.card, borderTop:"1px solid "+C.border}}>
-            <div style={{display:"flex", gap:5, flexWrap:"wrap", marginBottom:7}}>
+          <div style={{padding:"10px 14px 0", background:"rgba(22,19,32,0.8)", borderTop:"1px solid rgba(200,168,75,0.1)"}}>
+            <div style={{display:"flex", gap:5, flexWrap:"wrap", marginBottom:8}}>
               {["Gasolina 200 debito Frank","Farmacia 80 Vania","Delivery 60 cartao Frank","Salario 5000 Frank"].map(sg => (
-                <button key={sg} onClick={() => sendMsg(sg)} style={{background:"#0d1f38", border:"1px solid "+C.border, borderRadius:999, padding:"3px 9px", fontSize:11, color:C.sub, cursor:"pointer"}}>{sg}</button>
+                <button key={sg} onClick={() => sendMsg(sg)} style={{background:"transparent", border:"1px solid rgba(200,168,75,0.16)", borderRadius:999, padding:"4px 10px", fontSize:11, color:C.sub, cursor:"pointer"}}>{sg}</button>
               ))}
             </div>
-            <div style={{display:"flex", gap:7, paddingBottom:12}}>
-              <label htmlFor="cam-inp" style={{background:"#0d1f38", color:C.text, border:"1px solid "+C.border, borderRadius:11, padding:"0 12px", fontSize:18, display:"flex", alignItems:"center", cursor:"pointer", flexShrink:0}}>
+            <div style={{display:"flex", gap:7, paddingBottom:14}}>
+              <label htmlFor="cam-inp" style={{background:"#100d1a", color:C.gold, border:"1px solid rgba(200,168,75,0.16)", borderRadius:12, padding:"0 13px", fontSize:16, display:"flex", alignItems:"center", cursor:"pointer", flexShrink:0}}>
                 Cam
                 <input
                   id="cam-inp"
@@ -1212,7 +1315,7 @@ export default function App() {
                   }}
                 />
               </label>
-              <label htmlFor="gal-inp" style={{background:"#0d1f38", color:C.text, border:"1px solid "+C.border, borderRadius:11, padding:"0 12px", fontSize:16, display:"flex", alignItems:"center", cursor:"pointer", flexShrink:0}}>
+              <label htmlFor="gal-inp" style={{background:"#100d1a", color:C.gold, border:"1px solid rgba(200,168,75,0.16)", borderRadius:12, padding:"0 13px", fontSize:15, display:"flex", alignItems:"center", cursor:"pointer", flexShrink:0}}>
                 Gal
                 <input
                   id="gal-inp"
@@ -1240,7 +1343,7 @@ export default function App() {
               <button
                 onClick={() => sendMsg(input)}
                 disabled={aiLoading || !input.trim()}
-                style={{...S.btn(C.green), padding:"0 15px", flexShrink:0}}
+                style={{...S.btn(C.gold, "#0F0F1A"), padding:"0 16px", flexShrink:0, borderRadius:12, opacity: (aiLoading || !input.trim()) ? 0.5 : 1}}
               >
                 Enviar
               </button>
