@@ -432,6 +432,7 @@ export default function App() {
   const [hideValues, setHideValues] = useState(() => load("cr_hide", false));
   const [showOnboarding, setShowOnboarding] = useState(() => !load("cr_onboarded", false));
   const [onbStep, setOnbStep] = useState(0);
+  const [pdfFiltro, setPdfFiltro] = useState("todos");
   const [recorrentes, setRecorrentes] = useState(() => {
     const nova = load("cr_recorrentes", null);
     if (nova) return nova;
@@ -576,50 +577,70 @@ export default function App() {
     ? goals.reduce((s,g) => s + Math.min((g.current/g.target)*100, 100), 0) / goals.length
     : 0;
 
-  const exportRelatorioPDF = () => {
+  const exportRelatorioPDF = (filtro = "todos") => {
+    const passaFiltro = t => filtro === "todos" ? true : filtro === "pagos" ? paidFilter(t) : !paidFilter(t);
+    const recF   = monthTxs.filter(t => t.type==="receita" && passaFiltro(t)).reduce((s,t)=>s+t.value,0);
+    const despF  = monthTxs.filter(t => t.type==="despesa" && passaFiltro(t)).reduce((s,t)=>s+t.value,0);
+    const invF   = monthTxs.filter(t => t.type==="investimento" && passaFiltro(t) && !t.investInicial).reduce((s,t)=>s+t.value,0);
+    const fixedF = monthTxs.filter(t => t.type==="despesa" && t.fixed && passaFiltro(t)).reduce((s,t)=>s+t.value,0);
+    const varF   = monthTxs.filter(t => t.type==="despesa" && !t.fixed && passaFiltro(t)).reduce((s,t)=>s+t.value,0);
+    const porCat = monthTxs.filter(t => t.type==="despesa" && passaFiltro(t)).reduce((a,t) => {a[t.category]=(a[t.category]||0)+t.value; return a;}, {});
+    const catList = Object.entries(porCat).sort((a,b) => b[1]-a[1]);
+    const legenda = filtro === "pagos" ? " (so pagos)" : filtro === "aberto" ? " (so em aberto)" : " (pagos + em aberto)";
+
     const doc = new jsPDF();
     let y = 22;
     doc.setFontSize(18);
     doc.setTextColor(200,168,75);
     doc.text("CasalRico - Relatorio de " + monthLabel(month), 14, y);
-    y += 8;
+    y += 7;
+    doc.setFontSize(10);
+    doc.setTextColor(120,120,120);
+    doc.text(legenda.trim(), 14, y);
+    y += 6;
     doc.setDrawColor(200,168,75);
     doc.line(14, y, 196, y);
     y += 10;
     doc.setFontSize(11);
     doc.setTextColor(40,40,40);
-    doc.text("Receitas: " + fmt(rec), 14, y); y += 7;
-    doc.text("Despesas: " + fmt(desp), 14, y); y += 7;
-    doc.text("Investido: " + fmt(inv), 14, y); y += 7;
+    doc.text("Receitas: " + fmt(recF), 14, y); y += 7;
+    doc.text("Despesas: " + fmt(despF), 14, y); y += 7;
+    doc.text("Investido: " + fmt(invF), 14, y); y += 7;
     doc.setFont(undefined, "bold");
-    doc.text("Saldo: " + fmt(saldo), 14, y); y += 10;
+    doc.text("Saldo: " + fmt(recF - despF - invF), 14, y); y += 10;
     doc.setFont(undefined, "normal");
-    doc.text("Gastos Fixos: " + fmt(despFixed) + "   Gastos Variaveis: " + fmt(despVar), 14, y); y += 10;
+    doc.text("Gastos Fixos: " + fmt(fixedF) + "   Gastos Variaveis: " + fmt(varF), 14, y); y += 10;
     doc.setFontSize(13);
     doc.text("Gastos por categoria", 14, y); y += 8;
     doc.setFontSize(10);
-    if (catData.length === 0) { doc.text("Sem despesas neste mes.", 18, y); y += 6; }
-    catData.forEach(c => {
+    if (catList.length === 0) { doc.text("Sem despesas neste filtro.", 18, y); y += 6; }
+    catList.forEach(([nome,valor]) => {
       if (y > 280) { doc.addPage(); y = 20; }
-      doc.text(c.name + ": " + fmt(c.value), 18, y); y += 6;
+      doc.text(nome + ": " + fmt(valor), 18, y); y += 6;
     });
-    doc.save("relatorio_casalrico_" + month + ".pdf");
+    doc.save("relatorio_casalrico_" + month + "_" + filtro + ".pdf");
   };
 
-  const exportHistoricoPDF = () => {
+  const exportHistoricoPDF = (filtro = "todos") => {
+    const passaFiltro = t => filtro === "todos" ? true : filtro === "pagos" ? paidFilter(t) : !paidFilter(t);
+    const legenda = filtro === "pagos" ? "(so pagos)" : filtro === "aberto" ? "(so em aberto)" : "(pagos + em aberto)";
     const doc = new jsPDF();
     let y = 22;
     doc.setFontSize(18);
     doc.setTextColor(200,168,75);
     doc.text("CasalRico - Historico Completo", 14, y);
-    y += 8;
+    y += 7;
+    doc.setFontSize(10);
+    doc.setTextColor(120,120,120);
+    doc.text(legenda, 14, y);
+    y += 6;
     doc.setDrawColor(200,168,75);
     doc.line(14, y, 196, y);
     y += 10;
     doc.setFontSize(9);
     doc.setTextColor(40,40,40);
-    const ordenado = [...txs].sort((a,b) => a.date.localeCompare(b.date));
-    if (ordenado.length === 0) { doc.text("Nenhum lancamento registrado ainda.", 14, y); }
+    const ordenado = txs.filter(passaFiltro).sort((a,b) => a.date.localeCompare(b.date));
+    if (ordenado.length === 0) { doc.text("Nenhum lancamento nesse filtro.", 14, y); }
     ordenado.forEach(t => {
       if (y > 285) { doc.addPage(); y = 20; }
       const tipo = t.type === "receita" ? "+" : "-";
@@ -627,7 +648,7 @@ export default function App() {
       doc.text(linha, 14, y);
       y += 6;
     });
-    doc.save("historico_casalrico.pdf");
+    doc.save("historico_casalrico_" + filtro + ".pdf");
   };
 
   const fixosRecorrentes    = recorrentes.filter(r => r.tipo==="fixo");
@@ -1118,7 +1139,12 @@ export default function App() {
                 </select>
               </div>
               <button onClick={() => setAddOpen(true)} style={{...S.btn(C.green), fontSize:12, padding:"7px 13px"}}>+ Nova</button>
-              <button onClick={exportHistoricoPDF} style={{...S.btn(C.gold,"#100d1a"), fontSize:12, padding:"7px 13px", fontWeight:800}}>Exportar Historico (PDF)</button>
+              <select value={pdfFiltro} onChange={e => setPdfFiltro(e.target.value)} style={{...S.sel, width:"auto", fontSize:12, padding:"7px 8px"}}>
+                <option value="todos">Pagos + Em aberto</option>
+                <option value="pagos">So pagos</option>
+                <option value="aberto">So em aberto</option>
+              </select>
+              <button onClick={() => exportHistoricoPDF(pdfFiltro)} style={{...S.btn(C.gold,"#100d1a"), fontSize:12, padding:"7px 13px", fontWeight:800}}>Exportar Historico (PDF)</button>
             </div>
 
             {["receita","despesa","investimento"].map(tipo => {
@@ -1189,9 +1215,16 @@ export default function App() {
         {tab === "relatorio" && (
           <div className="up">
             <Card style={{marginBottom:11, borderTop:"3px solid "+C.gold}}>
-              <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:2}}>
+              <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:2, flexWrap:"wrap", gap:8}}>
                 <div style={{fontSize:14, fontWeight:700, color:C.gold}}>Relatorio - {monthLabel(month)}</div>
-                <button onClick={exportRelatorioPDF} style={{...S.btn(C.gold,"#100d1a"), fontSize:11, padding:"6px 11px", fontWeight:800}}>Exportar PDF</button>
+                <div style={{display:"flex", gap:6, alignItems:"center"}}>
+                  <select value={pdfFiltro} onChange={e => setPdfFiltro(e.target.value)} style={{...S.sel, width:"auto", fontSize:11, padding:"6px 8px"}}>
+                    <option value="todos">Pagos + Em aberto</option>
+                    <option value="pagos">So pagos</option>
+                    <option value="aberto">So em aberto</option>
+                  </select>
+                  <button onClick={() => exportRelatorioPDF(pdfFiltro)} style={{...S.btn(C.gold,"#100d1a"), fontSize:11, padding:"6px 11px", fontWeight:800}}>Exportar PDF</button>
+                </div>
               </div>
               <div style={{fontSize:11, color:C.muted, marginBottom:12}}>Resumo de fixos e variaveis do mes</div>
               <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))", gap:10}}>
@@ -1212,12 +1245,36 @@ export default function App() {
                 </div>
                 {fixedItems.length === 0
                   ? <div style={{color:C.muted, fontSize:12, textAlign:"center", padding:14}}>Sem gastos fixos</div>
-                  : fixedItems.map(t => (
-                      <div key={t.id} style={{display:"flex", justifyContent:"space-between", gap:6, padding:"7px 0", borderBottom:"1px solid "+C.border}}>
-                        <span style={{fontSize:12, color:C.sub}}>{t.desc}</span>
-                        <span style={{fontSize:12, fontWeight:700, whiteSpace:"nowrap"}}>{fmtV(t.value)}</span>
-                      </div>
-                    ))
+                  : (() => {
+                      const pagos = fixedItems.filter(paidFilter);
+                      const aberto = fixedItems.filter(t => !paidFilter(t));
+                      return (
+                        <>
+                          {pagos.length > 0 && (
+                            <div style={{marginBottom: aberto.length ? 10 : 0}}>
+                              <div style={{fontSize:9.5, color:C.green, fontWeight:700, textTransform:"uppercase", letterSpacing:0.6, marginBottom:4}}>Pagos - {fmtV(pagos.reduce((s,t)=>s+t.value,0))}</div>
+                              {pagos.map(t => (
+                                <div key={t.id} style={{display:"flex", justifyContent:"space-between", gap:6, padding:"6px 0", borderBottom:"1px solid "+C.border}}>
+                                  <span style={{fontSize:12, color:C.sub}}>{t.desc}</span>
+                                  <span style={{fontSize:12, fontWeight:700, whiteSpace:"nowrap"}}>{fmtV(t.value)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {aberto.length > 0 && (
+                            <div>
+                              <div style={{fontSize:9.5, color:C.yellow, fontWeight:700, textTransform:"uppercase", letterSpacing:0.6, marginBottom:4}}>Em aberto - {fmtV(aberto.reduce((s,t)=>s+t.value,0))}</div>
+                              {aberto.map(t => (
+                                <div key={t.id} style={{display:"flex", justifyContent:"space-between", gap:6, padding:"6px 0", borderBottom:"1px solid "+C.border, opacity:0.75}}>
+                                  <span style={{fontSize:12, color:C.sub}}>{t.desc}</span>
+                                  <span style={{fontSize:12, fontWeight:700, whiteSpace:"nowrap"}}>{fmtV(t.value)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()
                 }
               </Card>
 
@@ -1228,12 +1285,36 @@ export default function App() {
                 </div>
                 {varItems.length === 0
                   ? <div style={{color:C.muted, fontSize:12, textAlign:"center", padding:14}}>Sem gastos variaveis</div>
-                  : varItems.map(t => (
-                      <div key={t.id} style={{display:"flex", justifyContent:"space-between", gap:6, padding:"7px 0", borderBottom:"1px solid "+C.border}}>
-                        <span style={{fontSize:12, color:C.sub}}>{t.desc}</span>
-                        <span style={{fontSize:12, fontWeight:700, whiteSpace:"nowrap"}}>{fmtV(t.value)}</span>
-                      </div>
-                    ))
+                  : (() => {
+                      const pagos = varItems.filter(paidFilter);
+                      const aberto = varItems.filter(t => !paidFilter(t));
+                      return (
+                        <>
+                          {pagos.length > 0 && (
+                            <div style={{marginBottom: aberto.length ? 10 : 0}}>
+                              <div style={{fontSize:9.5, color:C.green, fontWeight:700, textTransform:"uppercase", letterSpacing:0.6, marginBottom:4}}>Pagos - {fmtV(pagos.reduce((s,t)=>s+t.value,0))}</div>
+                              {pagos.map(t => (
+                                <div key={t.id} style={{display:"flex", justifyContent:"space-between", gap:6, padding:"6px 0", borderBottom:"1px solid "+C.border}}>
+                                  <span style={{fontSize:12, color:C.sub}}>{t.desc}</span>
+                                  <span style={{fontSize:12, fontWeight:700, whiteSpace:"nowrap"}}>{fmtV(t.value)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {aberto.length > 0 && (
+                            <div>
+                              <div style={{fontSize:9.5, color:C.yellow, fontWeight:700, textTransform:"uppercase", letterSpacing:0.6, marginBottom:4}}>Em aberto - {fmtV(aberto.reduce((s,t)=>s+t.value,0))}</div>
+                              {aberto.map(t => (
+                                <div key={t.id} style={{display:"flex", justifyContent:"space-between", gap:6, padding:"6px 0", borderBottom:"1px solid "+C.border, opacity:0.75}}>
+                                  <span style={{fontSize:12, color:C.sub}}>{t.desc}</span>
+                                  <span style={{fontSize:12, fontWeight:700, whiteSpace:"nowrap"}}>{fmtV(t.value)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()
                 }
               </Card>
             </div>
