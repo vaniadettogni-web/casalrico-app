@@ -438,7 +438,10 @@ export default function App() {
   const [overrides,  setOverrides]  = useState(() => load("cr_overrides", {}));
   const [orcamento,  setOrcamento]  = useState(() => load("cr_orcamento", {geral:null, porCategoria:{}, semanalLazer:null}));
   const [confirmModal, setConfirmModal] = useState(null);
-  const [month,      setMonth]      = useState("2026-06");
+  const [month,      setMonth]      = useState(() => {
+    const atual = today().slice(0,7);
+    return ALL_MONTHS.some(([v]) => v === atual) ? atual : "2026-06";
+  });
   const [chatOpen,   setChatOpen]   = useState(false);
   const [msgs,       setMsgs]       = useState([{role:"assistant", content:"Ola Frank e Vania! Pronto para registrar.\n\nExemplos:\n- gasolina 200 debito Frank\n- salario 5000 Frank\n- farmacia 80 Vania\n\nOu envie foto do comprovante."}]);
   const [input,      setInput]      = useState("");
