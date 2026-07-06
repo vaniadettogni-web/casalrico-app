@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, AreaChart, Area } from "recharts";
+import { jsPDF } from "jspdf";
 
 const C = {
   bg:"#0F0F1A", card:"#161320", border:"#2b2440",
@@ -429,6 +430,8 @@ export default function App() {
   const [txs,        setTxs]        = useState(() => load("cr_txs", []));
   const [goals,      setGoals]      = useState(() => load("cr_goals", []));
   const [hideValues, setHideValues] = useState(() => load("cr_hide", false));
+  const [showOnboarding, setShowOnboarding] = useState(() => !load("cr_onboarded", false));
+  const [onbStep, setOnbStep] = useState(0);
   const [recorrentes, setRecorrentes] = useState(() => {
     const nova = load("cr_recorrentes", null);
     if (nova) return nova;
@@ -558,6 +561,74 @@ export default function App() {
 
   const [wkStart, wkEnd] = weekRange();
   const lazerSemana = txs.filter(t => t.type==="despesa" && t.category==="Lazer" && t.date>=wkStart && t.date<=wkEnd && paidFilter(t)).reduce((s,t)=>s+t.value,0);
+
+  const somaSemana = (ini, fim) => {
+    const rec  = txs.filter(t => t.type==="receita" && t.date>=ini && t.date<=fim && paidFilter(t)).reduce((s,t)=>s+t.value,0);
+    const desp = txs.filter(t => t.type==="despesa" && t.date>=ini && t.date<=fim && paidFilter(t)).reduce((s,t)=>s+t.value,0);
+    return { rec, desp, saldo: rec-desp };
+  };
+  const semanaAtual = somaSemana(wkStart, wkEnd);
+  const prevWkStart = new Date(wkStart+"T12:00"); prevWkStart.setDate(prevWkStart.getDate()-7);
+  const prevWkEnd   = new Date(wkEnd+"T12:00");   prevWkEnd.setDate(prevWkEnd.getDate()-7);
+  const semanaAnterior = somaSemana(prevWkStart.toISOString().slice(0,10), prevWkEnd.toISOString().slice(0,10));
+
+  const progressoMetasMedia = goals.length
+    ? goals.reduce((s,g) => s + Math.min((g.current/g.target)*100, 100), 0) / goals.length
+    : 0;
+
+  const exportRelatorioPDF = () => {
+    const doc = new jsPDF();
+    let y = 22;
+    doc.setFontSize(18);
+    doc.setTextColor(200,168,75);
+    doc.text("CasalRico - Relatorio de " + monthLabel(month), 14, y);
+    y += 8;
+    doc.setDrawColor(200,168,75);
+    doc.line(14, y, 196, y);
+    y += 10;
+    doc.setFontSize(11);
+    doc.setTextColor(40,40,40);
+    doc.text("Receitas: " + fmt(rec), 14, y); y += 7;
+    doc.text("Despesas: " + fmt(desp), 14, y); y += 7;
+    doc.text("Investido: " + fmt(inv), 14, y); y += 7;
+    doc.setFont(undefined, "bold");
+    doc.text("Saldo: " + fmt(saldo), 14, y); y += 10;
+    doc.setFont(undefined, "normal");
+    doc.text("Gastos Fixos: " + fmt(despFixed) + "   Gastos Variaveis: " + fmt(despVar), 14, y); y += 10;
+    doc.setFontSize(13);
+    doc.text("Gastos por categoria", 14, y); y += 8;
+    doc.setFontSize(10);
+    if (catData.length === 0) { doc.text("Sem despesas neste mes.", 18, y); y += 6; }
+    catData.forEach(c => {
+      if (y > 280) { doc.addPage(); y = 20; }
+      doc.text(c.name + ": " + fmt(c.value), 18, y); y += 6;
+    });
+    doc.save("relatorio_casalrico_" + month + ".pdf");
+  };
+
+  const exportHistoricoPDF = () => {
+    const doc = new jsPDF();
+    let y = 22;
+    doc.setFontSize(18);
+    doc.setTextColor(200,168,75);
+    doc.text("CasalRico - Historico Completo", 14, y);
+    y += 8;
+    doc.setDrawColor(200,168,75);
+    doc.line(14, y, 196, y);
+    y += 10;
+    doc.setFontSize(9);
+    doc.setTextColor(40,40,40);
+    const ordenado = [...txs].sort((a,b) => a.date.localeCompare(b.date));
+    if (ordenado.length === 0) { doc.text("Nenhum lancamento registrado ainda.", 14, y); }
+    ordenado.forEach(t => {
+      if (y > 285) { doc.addPage(); y = 20; }
+      const tipo = t.type === "receita" ? "+" : "-";
+      const linha = new Date(t.date+"T12:00").toLocaleDateString("pt-BR") + "  " + t.desc + "  [" + (t.category || t.type) + "]  " + tipo + fmt(t.value) + (t.paid === false ? "  (em aberto)" : "");
+      doc.text(linha, 14, y);
+      y += 6;
+    });
+    doc.save("historico_casalrico.pdf");
+  };
 
   const fixosRecorrentes    = recorrentes.filter(r => r.tipo==="fixo");
   const previstosRecorrentes = recorrentes.filter(r => r.tipo==="previsto");
@@ -780,6 +851,7 @@ export default function App() {
             </button>
             <button onClick={() => setAddOpen(true)} style={{...S.btn(C.gold, "#0F0F1A"), fontSize:12, padding:"8px 15px", borderRadius:999, boxShadow:"0 8px 20px -8px rgba(200,168,75,0.5)"}}>+ Lancar</button>
             <button onClick={() => setChatOpen(true)} style={{...S.btn("transparent"), fontSize:16, padding:"6px 12px", border:"1px solid rgba(200,168,75,0.18)", color:C.gold, borderRadius:999}}>IA</button>
+            <button onClick={() => {setOnbStep(0); setShowOnboarding(true);}} title="Ver tour do app" style={{...S.btn("transparent"), fontSize:13, fontWeight:800, padding:"7px 11px", border:"1px solid rgba(200,168,75,0.18)", color:C.gold, borderRadius:999}}>?</button>
           </div>
         </div>
       </div>
@@ -862,6 +934,67 @@ export default function App() {
                 </div>
               </Card>
             )}
+
+            <Card style={{marginBottom:11}}>
+              <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10}}>
+                <div style={{fontSize:14, fontWeight:700}}>Resumo da Semana</div>
+                <div style={{fontSize:10, color:C.muted}}>{new Date(wkStart+"T12:00").toLocaleDateString("pt-BR")} - {new Date(wkEnd+"T12:00").toLocaleDateString("pt-BR")}</div>
+              </div>
+              <div style={{display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:9, marginBottom:10}}>
+                <div>
+                  <Lbl>Receitas</Lbl>
+                  <div style={{fontSize:14, fontWeight:800, color:C.green}}>{fmtV(semanaAtual.rec)}</div>
+                </div>
+                <div>
+                  <Lbl>Despesas</Lbl>
+                  <div style={{fontSize:14, fontWeight:800, color:C.red}}>{fmtV(semanaAtual.desp)}</div>
+                </div>
+                <div>
+                  <Lbl>Saldo</Lbl>
+                  <div style={{fontSize:14, fontWeight:800, color:semanaAtual.saldo>=0?C.green:C.red}}>{fmtV(semanaAtual.saldo)}</div>
+                </div>
+              </div>
+              {!hideValues && (
+                <div style={{fontSize:11, color:C.muted, borderTop:"1px solid "+C.border, paddingTop:9}}>
+                  {semanaAtual.desp === semanaAnterior.desp
+                    ? "Gastos iguais aos da semana passada."
+                    : semanaAtual.desp > semanaAnterior.desp
+                      ? <span>Gastou <span style={{color:C.red, fontWeight:700}}>{fmtV(semanaAtual.desp - semanaAnterior.desp)} a mais</span> que na semana passada ({fmtV(semanaAnterior.desp)}).</span>
+                      : <span>Gastou <span style={{color:C.green, fontWeight:700}}>{fmtV(semanaAnterior.desp - semanaAtual.desp)} a menos</span> que na semana passada ({fmtV(semanaAnterior.desp)}).</span>
+                  }
+                </div>
+              )}
+            </Card>
+
+            <Card style={{marginBottom:11}}>
+              <div style={{fontSize:14, fontWeight:700, marginBottom:12}}>Progresso</div>
+              <div style={{marginBottom:14}}>
+                <div style={{display:"flex", justifyContent:"space-between", marginBottom:4}}>
+                  <span style={{fontSize:12, color:C.sub}}>Orcamento do mes</span>
+                  <span style={{fontSize:11, color:C.muted}}>
+                    {orcamento.geral ? fmtV(desp)+" / "+fmtV(orcamento.geral) : "Nao definido"}
+                  </span>
+                </div>
+                <div style={{background:"#100d1a", borderRadius:999, height:8, overflow:"hidden"}}>
+                  <div style={{
+                    background: orcamento.geral ? (desp>orcamento.geral?C.red:C.gold) : C.border,
+                    width: orcamento.geral ? Math.min((desp/orcamento.geral)*100,100)+"%" : "0%",
+                    height:"100%",
+                  }}/>
+                </div>
+              </div>
+              <div>
+                <div style={{display:"flex", justifyContent:"space-between", marginBottom:4}}>
+                  <span style={{fontSize:12, color:C.sub}}>Media das metas</span>
+                  <span style={{fontSize:11, color:C.muted}}>
+                    {goals.length ? progressoMetasMedia.toFixed(0)+"%" : "Nenhuma meta"}
+                  </span>
+                </div>
+                <div style={{background:"#100d1a", borderRadius:999, height:8, overflow:"hidden"}}>
+                  <div style={{background:C.green, width:(goals.length?progressoMetasMedia:0)+"%", height:"100%"}}/>
+                </div>
+              </div>
+            </Card>
 
             <Card style={{marginBottom:11}}>
               <div style={{fontSize:14, fontWeight:700, marginBottom:10}}>Evolucao 2026</div>
@@ -985,6 +1118,7 @@ export default function App() {
                 </select>
               </div>
               <button onClick={() => setAddOpen(true)} style={{...S.btn(C.green), fontSize:12, padding:"7px 13px"}}>+ Nova</button>
+              <button onClick={exportHistoricoPDF} style={{...S.btn(C.gold,"#100d1a"), fontSize:12, padding:"7px 13px", fontWeight:800}}>Exportar Historico (PDF)</button>
             </div>
 
             {["receita","despesa","investimento"].map(tipo => {
@@ -1055,7 +1189,10 @@ export default function App() {
         {tab === "relatorio" && (
           <div className="up">
             <Card style={{marginBottom:11, borderTop:"3px solid "+C.gold}}>
-              <div style={{fontSize:14, fontWeight:700, marginBottom:2, color:C.gold}}>Relatorio - {monthLabel(month)}</div>
+              <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:2}}>
+                <div style={{fontSize:14, fontWeight:700, color:C.gold}}>Relatorio - {monthLabel(month)}</div>
+                <button onClick={exportRelatorioPDF} style={{...S.btn(C.gold,"#100d1a"), fontSize:11, padding:"6px 11px", fontWeight:800}}>Exportar PDF</button>
+              </div>
               <div style={{fontSize:11, color:C.muted, marginBottom:12}}>Resumo de fixos e variaveis do mes</div>
               <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))", gap:10}}>
                 {[["Receitas",rec,C.green],["Despesas",desp,C.red],["Investido",inv,C.blue],["Saldo",saldo,saldo>=0?C.green:C.red]].map(([l,v,col]) => (
@@ -1569,6 +1706,56 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* MODAL ONBOARDING */}
+      {showOnboarding && (() => {
+        const steps = [
+          {
+            titulo: "Bem-vindos, Frank & Vania!",
+            texto: "O CasalRico App e o painel de voces pra organizar a vida financeira do casal — juntos, num so lugar. Vamos te mostrar rapidinho como funciona.",
+          },
+          {
+            titulo: "Lance um gasto em segundos",
+            texto: "O botao dourado \"+ Lancar\", no topo, abre o formulario pra registrar despesas, receitas ou investimentos. Da tambem pra marcar um gasto como fixo ou previsto, pra ele se repetir todo mes sozinho.",
+          },
+          {
+            titulo: "Ou fale com a IA",
+            texto: "O botao \"IA\" abre um chat onde voces podem digitar (\"gasolina 200 debito Frank\") ou mandar foto do comprovante, e o lancamento e criado automaticamente.",
+          },
+          {
+            titulo: "Acompanhem tudo pelas abas",
+            texto: "Inicio mostra o resumo do mes. Lancamentos lista tudo. Relatorio compara fixos x variaveis. Fixos guarda o que se repete. Metas acompanha os sonhos de voces. Analise e Orcamento ajudam a planejar.",
+          },
+          {
+            titulo: "Prontos!",
+            texto: "Podem comecar a usar. Se quiserem rever esse tour, e so clicar no \"?\" ali no topo, do lado do botao IA.",
+          },
+        ];
+        const s = steps[onbStep];
+        const ultimo = onbStep === steps.length - 1;
+        const fechar = () => { setShowOnboarding(false); try { localStorage.setItem("cr_onboarded", "true"); } catch(_){} };
+        return (
+          <div style={{position:"fixed", inset:0, background:"#000d", zIndex:500, display:"flex", alignItems:"center", justifyContent:"center", padding:16}}>
+            <div style={{background:C.card, border:"1px solid rgba(200,168,75,0.25)", borderRadius:22, padding:26, width:"100%", maxWidth:400, textAlign:"center"}}>
+              <div style={{display:"flex", justifyContent:"center", gap:5, marginBottom:18}}>
+                {steps.map((_,i) => (
+                  <div key={i} style={{width:i===onbStep?18:6, height:6, borderRadius:999, background:i===onbStep?C.gold:C.border, transition:"width 0.2s"}}/>
+                ))}
+              </div>
+              <div style={{fontFamily:"'Fraunces', serif", fontWeight:600, fontSize:20, color:"#E8D4A0", marginBottom:12}}>{s.titulo}</div>
+              <div style={{fontSize:13, color:C.sub, lineHeight:1.6, marginBottom:22}}>{s.texto}</div>
+              <div style={{display:"flex", gap:8}}>
+                {!ultimo && <button onClick={fechar} style={{...S.btn("transparent",C.muted), flex:1, border:"1px solid "+C.border}}>Pular</button>}
+                <button
+                  onClick={() => ultimo ? fechar() : setOnbStep(n => n+1)}
+                  style={{...S.btn(C.gold,"#100d1a"), flex:1, fontWeight:800}}
+                >{ultimo ? "Comecar a usar" : "Proximo"}</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {goalOpen && (
         <div style={{position:"fixed", inset:0, background:"#000d", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:12}}>
           <div style={{background:C.card, border:"1px solid "+C.border, borderRadius:20, padding:22, width:"100%", maxWidth:400}}>
