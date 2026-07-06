@@ -600,17 +600,39 @@ export default function App() {
 
   const saveEdit = () => {
     if (!editTx) return;
+    const novoMes = (editTx.date || today()).slice(0,7);
     if (editTx.auto) {
-      const key = editTx.recorrenteId + "__" + editTx.month;
-      setOverrides(p => ({...p, [key]: {
-        ...p[key],
-        value: parseFloat(editTx.value),
-        date: editTx.date,
-        desc: editTx.desc,
-        paid: editTx.paid,
-      }}));
+      if (novoMes !== editTx.month) {
+        // Data mudou pra outro mes: pula o mes original (nao gera mais auto ali) e
+        // cria um lancamento real no mes novo, ligado ao mesmo recorrente
+        const origKey = editTx.recorrenteId + "__" + editTx.month;
+        setOverrides(p => ({...p, [origKey]: {...p[origKey], skip:true}}));
+        setTxs(p => [...p, {
+          id: Date.now(),
+          recorrenteId: editTx.recorrenteId,
+          type: "despesa",
+          desc: editTx.desc,
+          category: editTx.category, subcategory: editTx.subcategory,
+          payMethod: editTx.payMethod, banco: editTx.banco,
+          fixed: editTx.fixed, prevista: editTx.prevista,
+          value: parseFloat(editTx.value),
+          date: editTx.date,
+          month: novoMes,
+          installments: 1,
+          paid: editTx.paid,
+        }]);
+      } else {
+        const key = editTx.recorrenteId + "__" + editTx.month;
+        setOverrides(p => ({...p, [key]: {
+          ...p[key],
+          value: parseFloat(editTx.value),
+          date: editTx.date,
+          desc: editTx.desc,
+          paid: editTx.paid,
+        }}));
+      }
     } else {
-      setTxs(p => p.map(t => t.id===editTx.id ? {...editTx, value:parseFloat(editTx.value)} : t));
+      setTxs(p => p.map(t => t.id===editTx.id ? {...editTx, value:parseFloat(editTx.value), month:novoMes} : t));
     }
     setEditOpen(false);
     setEditTx(null);
@@ -636,6 +658,21 @@ export default function App() {
       setTxs(p => p.filter(x => x.id !== t.id));
     }
     showToast("Removido", false);
+  };
+
+  const converterEmRecorrente = (t) => {
+    // Transforma um lancamento fixo/previsto antigo (unico, preso a um mes) em um
+    // modelo recorrente que passa a se repetir todo mes a partir de agora.
+    const novoId = "rec_" + Date.now();
+    setRecorrentes(p => [...p, {
+      id: novoId, tipo: t.fixed ? "fixo" : "previsto",
+      desc: t.desc, category: t.category, subcategory: t.subcategory,
+      value: t.value, payMethod: t.payMethod, banco: t.banco,
+      startMonth: t.month, active: true,
+    }]);
+    // Marca o lancamento original como pertencente a esse recorrente, pra ele nao duplicar no mesmo mes
+    setTxs(p => p.map(x => x.id === t.id ? {...x, recorrenteId: novoId} : x));
+    showToast(t.desc + " agora repete todo mes!");
   };
 
   const sendMsg = async (text, img=null) => {
@@ -975,8 +1012,11 @@ export default function App() {
                             {t.banco && <span>Banco: {CONTAS.find(c=>c.id===t.banco)?.nome||""}</span>}
                           </div>
                         </div>
-                        <div style={{display:"flex", gap:5, alignItems:"center", marginLeft:8}}>
+                        <div style={{display:"flex", gap:5, alignItems:"center", marginLeft:8, flexWrap:"wrap", justifyContent:"flex-end"}}>
                           <span style={{fontWeight:700, color:cor, fontSize:13}}>{tipo==="receita"?"+":"-"}{fmtV(t.value)}</span>
+                          {(t.fixed || t.prevista) && !t.auto && !t.recorrenteId && (
+                            <button onClick={() => showConfirm("Fazer \""+t.desc+"\" se repetir todo mes a partir de "+monthLabel(t.month)+"?", () => converterEmRecorrente(t))} style={{background:C.gold, border:"none", color:"#100d1a", cursor:"pointer", fontSize:10, fontWeight:700, borderRadius:7, padding:"3px 7px"}}>Repetir</button>
+                          )}
                           <button
                             onClick={() => togglePaid(t)}
                             style={{background:"#1e293b", border:"none", color:paidFilter(t)?C.green:C.yellow, cursor:"pointer", fontSize:10, borderRadius:7, padding:"3px 7px"}}
@@ -1114,11 +1154,15 @@ export default function App() {
                       <div style={{fontWeight:700, fontSize:14, display:"flex", gap:5, alignItems:"center", flexWrap:"wrap"}}>
                         <span>{t.desc}</span>
                         {!paidFilter(t) && <Bdg color={C.yellow}>Em aberto</Bdg>}
+                        {!t.auto && !t.recorrenteId && <Bdg color={C.orange}>Nao repete</Bdg>}
                       </div>
                       <div style={{fontSize:10, color:C.muted, marginTop:2}}>{new Date(t.date+"T12:00").toLocaleDateString("pt-BR")} - {monthLabel(t.month)}</div>
                     </div>
-                    <div style={{display:"flex", gap:6, alignItems:"center"}}>
+                    <div style={{display:"flex", gap:6, alignItems:"center", flexWrap:"wrap", justifyContent:"flex-end"}}>
                       <span style={{fontWeight:700, color:C.yellow}}>{fmtV(t.value)}</span>
+                      {!t.auto && !t.recorrenteId && (
+                        <button onClick={() => showConfirm("Fazer \""+t.desc+"\" se repetir todo mes a partir de "+monthLabel(t.month)+"?", () => converterEmRecorrente(t))} style={{background:C.gold, border:"none", color:"#100d1a", cursor:"pointer", fontSize:10, fontWeight:700, borderRadius:7, padding:"3px 7px"}}>Repetir todo mes</button>
+                      )}
                       <button onClick={() => togglePaid(t)} style={{background:"#1e293b", border:"none", color:paidFilter(t)?C.green:C.yellow, cursor:"pointer", fontSize:10, borderRadius:7, padding:"3px 7px"}}>{paidFilter(t)?"Pago":"Aberto"}</button>
                       <button onClick={() => openEdit(t)} style={{background:"#1e293b", border:"none", color:C.sub, cursor:"pointer", fontSize:11, borderRadius:7, padding:"3px 7px"}}>Edit</button>
                       <button onClick={() => showConfirm("Excluir \""+t.desc+"\""+(t.auto?" (somente "+monthLabel(t.month)+")":"")+"?", () => deleteTx(t))} style={{background:"none", border:"none", color:C.muted, cursor:"pointer", fontSize:15}}>x</button>
