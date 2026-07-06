@@ -56,6 +56,23 @@ const fmt   = v => (v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL
 const fmtS  = v => v >= 1000 ? "R$"+(v/1000).toFixed(1)+"k" : "R$"+Math.round(v);
 const today = () => new Date().toISOString().slice(0,10);
 
+const DEMO_MES = "2026-07";
+const DEMO_TXS = [
+  {id:1, type:"receita", desc:"Salario Frank", value:6500, subcategory:"Salario Frank", date:DEMO_MES+"-05", month:DEMO_MES, payMethod:"Pix", banco:"ban_frank", paid:true, installments:1},
+  {id:2, type:"receita", desc:"Salario Vania", value:4800, subcategory:"Salario Vania", date:DEMO_MES+"-05", month:DEMO_MES, payMethod:"Pix", banco:"ban_vania", paid:true, installments:1},
+  {id:3, type:"despesa", desc:"Aluguel", value:2200, category:"Moradia", subcategory:"Aluguel/Financiamento", date:DEMO_MES+"-05", month:DEMO_MES, payMethod:"Debito", banco:"ban_frank", fixed:true, paid:true, installments:1},
+  {id:4, type:"despesa", desc:"Supermercado", value:890, category:"Alimentacao", subcategory:"Supermercado", date:DEMO_MES+"-10", month:DEMO_MES, payMethod:"Cartao de Credito", banco:"ban_frank", card:"frank_ban", paid:true, installments:1},
+  {id:5, type:"despesa", desc:"Academia", value:180, category:"Saude", subcategory:"Academia", date:DEMO_MES+"-03", month:DEMO_MES, payMethod:"Debito", banco:"ban_vania", fixed:true, paid:true, installments:1},
+  {id:6, type:"despesa", desc:"Cinema", value:120, category:"Lazer", subcategory:"Cinema/Teatro", date:DEMO_MES+"-15", month:DEMO_MES, payMethod:"Pix", banco:"ban_frank", paid:true, installments:1},
+  {id:7, type:"investimento", desc:"Aporte Tesouro Selic", value:1000, investBanco:"XP Investimentos", investTipo:"Tesouro Selic", prazo:"Livre", date:DEMO_MES+"-06", month:DEMO_MES, banco:"ban_vania", paid:true, installments:1},
+  {id:8, type:"despesa", desc:"Combustivel", value:340, category:"Carro", subcategory:"Gasolina", date:DEMO_MES+"-20", month:DEMO_MES, payMethod:"Debito", banco:"ban_frank", paid:true, installments:1},
+  {id:9, type:"despesa", desc:"Plano de Saude", value:560, category:"Saude", subcategory:"Plano de Saude", date:DEMO_MES+"-05", month:DEMO_MES, payMethod:"Debito", banco:"ban_vania", fixed:true, paid:true, installments:1},
+];
+const DEMO_GOALS = [
+  {id:1, name:"Viagem para a praia", target:8000, current:5200, deadline:"2026-12-20", color:"#10b981"},
+  {id:2, name:"Reserva de emergencia", target:20000, current:14500, deadline:"2027-01-01", color:"#3b82f6"},
+];
+
 const EMPTY_FORM = {
   type:"despesa", desc:"", value:"", category:"Alimentacao", subcategory:"Supermercado",
   payMethod:"Pix", banco:"ban_frank", card:"", fixed:false, installments:1,
@@ -433,6 +450,12 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(() => !load("cr_onboarded", false));
   const [onbStep, setOnbStep] = useState(0);
   const [pdfFiltro, setPdfFiltro] = useState("todos");
+  const [demoMode, setDemoMode] = useState(false);
+  const demoBackupRef = useRef(null);
+  const importInputRef = useRef(null);
+  const [storiesOpen, setStoriesOpen] = useState(false);
+  const [storiesFrase, setStoriesFrase] = useState("Fechamos o mes no verde!");
+  const storiesCanvasRef = useRef(null);
   const [recorrentes, setRecorrentes] = useState(() => {
     const nova = load("cr_recorrentes", null);
     if (nova) return nova;
@@ -476,15 +499,116 @@ export default function App() {
   };
 
   // Salvar automaticamente no localStorage sempre que dados mudarem
-  useEffect(() => { try { localStorage.setItem("cr_txs",         JSON.stringify(txs));         } catch(_){} }, [txs]);
-  useEffect(() => { try { localStorage.setItem("cr_recorrentes", JSON.stringify(recorrentes));  } catch(_){} }, [recorrentes]);
-  useEffect(() => { try { localStorage.setItem("cr_overrides",   JSON.stringify(overrides));    } catch(_){} }, [overrides]);
+  useEffect(() => { if (!demoMode) try { localStorage.setItem("cr_txs",         JSON.stringify(txs));         } catch(_){} }, [txs, demoMode]);
+  useEffect(() => { if (!demoMode) try { localStorage.setItem("cr_recorrentes", JSON.stringify(recorrentes));  } catch(_){} }, [recorrentes, demoMode]);
+  useEffect(() => { if (!demoMode) try { localStorage.setItem("cr_overrides",   JSON.stringify(overrides));    } catch(_){} }, [overrides, demoMode]);
   useEffect(() => { try { localStorage.setItem("cr_orcamento",   JSON.stringify(orcamento));    } catch(_){} }, [orcamento]);
-  useEffect(() => { try { localStorage.setItem("cr_goals",       JSON.stringify(goals));        } catch(_){} }, [goals]);
+  useEffect(() => { if (!demoMode) try { localStorage.setItem("cr_goals",       JSON.stringify(goals));        } catch(_){} }, [goals, demoMode]);
   useEffect(() => { try { localStorage.setItem("cr_hide",        JSON.stringify(hideValues));   } catch(_){} }, [hideValues]);
 
   const fmtV = v => hideValues ? "R$ ••••" : fmt(v);
   const showConfirm = (message, onConfirm) => setConfirmModal({message, onConfirm});
+
+  const exportarBackup = () => {
+    const dados = { txs, recorrentes, overrides, goals, orcamento, versao:1, exportadoEm:new Date().toISOString() };
+    const blob = new Blob([JSON.stringify(dados, null, 2)], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "casalrico_backup_" + today() + ".json";
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast("Backup baixado!");
+  };
+
+  const importarBackup = (file) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      let dados;
+      try { dados = JSON.parse(reader.result); } catch(_) { showToast("Arquivo invalido", false); return; }
+      if (!dados || !Array.isArray(dados.txs)) { showToast("Arquivo de backup invalido", false); return; }
+      showConfirm("Isso vai substituir todos os dados atuais pelos do backup. Tem certeza?", () => {
+        setTxs(dados.txs || []);
+        setRecorrentes(dados.recorrentes || []);
+        setOverrides(dados.overrides || {});
+        setGoals(dados.goals || []);
+        setOrcamento(dados.orcamento || {geral:null, porCategoria:{}, semanalLazer:null});
+        showToast("Backup restaurado!");
+      });
+    };
+    reader.readAsText(file);
+  };
+
+  const toggleDemoMode = () => {
+    if (!demoMode) {
+      demoBackupRef.current = { txs, goals, recorrentes, overrides };
+      setTxs(DEMO_TXS);
+      setGoals(DEMO_GOALS);
+      setRecorrentes([]);
+      setOverrides({});
+      setMonth(DEMO_MES);
+      setDemoMode(true);
+      showToast("Modo demonstracao ativado — dados ficticios");
+    } else {
+      const b = demoBackupRef.current;
+      if (b) {
+        setTxs(b.txs);
+        setGoals(b.goals);
+        setRecorrentes(b.recorrentes);
+        setOverrides(b.overrides);
+      }
+      setDemoMode(false);
+      showToast("Modo demonstracao desativado — voltando aos seus dados");
+    }
+  };
+
+  const gerarCardStories = () => {
+    const canvas = storiesCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    canvas.width = 1080; canvas.height = 1920;
+    const grad = ctx.createRadialGradient(760,380,100,540,960,1500);
+    grad.addColorStop(0, "#1c1830");
+    grad.addColorStop(1, "#0F0F1A");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,1080,1920);
+    ctx.fillStyle = "rgba(200,168,75,0.12)";
+    ctx.beginPath(); ctx.arc(860,340,320,0,Math.PI*2); ctx.fill();
+
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#C8A84B";
+    ctx.font = "italic 900 92px Georgia, serif";
+    ctx.fillText("CasalRico", 540, 300);
+    ctx.fillStyle = "#8a8095";
+    ctx.font = "600 32px Arial, sans-serif";
+    ctx.fillText("FRANK & VANIA  ·  2026", 540, 350);
+
+    ctx.strokeStyle = "#C8A84B";
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(440,410); ctx.lineTo(640,410); ctx.stroke();
+
+    ctx.fillStyle = "#F0E6D2";
+    ctx.font = "600 68px Georgia, serif";
+    const palavras = storiesFrase.split(" ");
+    let linha = "", linhas = [];
+    palavras.forEach(p => {
+      const teste = linha ? linha + " " + p : p;
+      if (ctx.measureText(teste).width > 880 && linha) { linhas.push(linha); linha = p; }
+      else linha = teste;
+    });
+    if (linha) linhas.push(linha);
+    const yInicio = 960 - (linhas.length-1)*45;
+    linhas.forEach((l,i) => ctx.fillText(l, 540, yInicio + i*90));
+
+    ctx.fillStyle = "#C8A84B";
+    ctx.font = "600 40px Arial, sans-serif";
+    ctx.fillText("@codigodocasalrico", 540, 1800);
+
+    const url = canvas.toDataURL("image/png");
+    const a = document.createElement("a");
+    a.href = url; a.download = "casalrico_stories.png";
+    a.click();
+    showToast("Imagem baixada!");
+  };
 
   const S = {
     inp: {background:"#100d1a", border:"1px solid rgba(200,168,75,0.14)", borderRadius:12, padding:"10px 13px", color:C.text, fontSize:13, width:"100%", outline:"none", boxSizing:"border-box"},
@@ -851,6 +975,12 @@ export default function App() {
           {toast.msg}
         </div>
 
+      )}
+
+      {demoMode && (
+        <div style={{position:"sticky", top:0, zIndex:150, background:"linear-gradient(90deg,#C8A84B,#E8D4A0)", color:"#100d1a", textAlign:"center", fontWeight:800, fontSize:12, padding:"7px 10px"}}>
+          MODO DEMONSTRACAO — dados ficticios pra prints. Nao lance nada real agora.
+        </div>
       )}
 
       {/* HEADER */}
@@ -1649,6 +1779,36 @@ export default function App() {
                   })
               }
             </Card>
+
+            <Card style={{marginTop:11}}>
+              <div style={{fontSize:14, fontWeight:700, marginBottom:4}}>Ferramentas</div>
+              <div style={{fontSize:11, color:C.muted, marginBottom:14}}>Backup dos dados, modo demonstracao pra tirar prints e card pro Instagram</div>
+
+              <div style={{marginBottom:16}}>
+                <Lbl>Backup</Lbl>
+                <div style={{fontSize:11, color:C.muted, marginBottom:8}}>Como os dados ficam so nesse navegador, exporte um backup de vez em quando pra nao correr risco de perder tudo.</div>
+                <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
+                  <button onClick={exportarBackup} style={{...S.btn(C.green), fontSize:12, padding:"8px 13px"}}>Exportar backup</button>
+                  <button onClick={() => importInputRef.current?.click()} style={{...S.btn("#100d1a",C.sub), fontSize:12, padding:"8px 13px", border:"1px solid "+C.border}}>Importar backup</button>
+                  <input ref={importInputRef} type="file" accept=".json,application/json" style={{display:"none"}} onChange={e => { const f=e.target.files?.[0]; if (f) importarBackup(f); e.target.value=""; }} />
+                </div>
+              </div>
+
+              <div style={{marginBottom:16, borderTop:"1px solid "+C.border, paddingTop:14}}>
+                <Lbl>Modo Demonstracao</Lbl>
+                <div style={{fontSize:11, color:C.muted, marginBottom:8}}>Mostra dados ficticios pra voce tirar prints sem expor os numeros reais de voces. Seus dados de verdade ficam guardados e voltam quando desativar.</div>
+                <button
+                  onClick={toggleDemoMode}
+                  style={{...S.btn(demoMode?C.red:C.gold, demoMode?"#fff":"#100d1a"), fontSize:12, padding:"8px 13px", fontWeight:800}}
+                >{demoMode ? "Desativar modo demonstracao" : "Ativar modo demonstracao"}</button>
+              </div>
+
+              <div style={{borderTop:"1px solid "+C.border, paddingTop:14}}>
+                <Lbl>Card para Stories</Lbl>
+                <div style={{fontSize:11, color:C.muted, marginBottom:8}}>Gera uma imagem pronta pra postar no Instagram, com a identidade visual do app.</div>
+                <button onClick={() => setStoriesOpen(true)} style={{...S.btn(C.gold,"#100d1a"), fontSize:12, padding:"8px 13px", fontWeight:800}}>Gerar card</button>
+              </div>
+            </Card>
           </div>
         )}
       </div>
@@ -1802,6 +1962,32 @@ export default function App() {
                 onClick={() => { confirmModal.onConfirm(); setConfirmModal(null); }}
                 style={{...S.btn(C.red), flex:1}}
               >Confirmar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CARD STORIES */}
+      {storiesOpen && (
+        <div style={{position:"fixed", inset:0, background:"#000d", zIndex:210, display:"flex", alignItems:"center", justifyContent:"center", padding:12, overflowY:"auto"}}>
+          <div style={{background:C.card, border:"1px solid "+C.border, borderRadius:20, padding:22, width:"100%", maxWidth:420, maxHeight:"90vh", overflowY:"auto"}}>
+            <div style={{fontWeight:800, fontSize:16, marginBottom:13}}>Card para Stories</div>
+            <Lbl>Escolha uma frase ou escreva a sua</Lbl>
+            <div style={{display:"flex", flexDirection:"column", gap:6, marginBottom:10}}>
+              {["Fechamos o mes no verde!", "Organizando as financas, juntos.", "Mais um passo rumo as nossas metas."].map(f => (
+                <button key={f} onClick={() => setStoriesFrase(f)} style={{
+                  textAlign:"left", padding:"8px 11px", borderRadius:10, fontSize:12, cursor:"pointer",
+                  background: storiesFrase===f ? "rgba(200,168,75,0.15)" : "#100d1a",
+                  border: "1px solid "+(storiesFrase===f ? C.gold : C.border),
+                  color: storiesFrase===f ? C.gold : C.sub,
+                }}>{f}</button>
+              ))}
+            </div>
+            <input value={storiesFrase} onChange={e => setStoriesFrase(e.target.value)} placeholder="Ou escreva sua propria frase" style={S.inp}/>
+            <canvas ref={storiesCanvasRef} style={{width:"100%", borderRadius:12, marginTop:14, border:"1px solid "+C.border, display:"none"}}/>
+            <div style={{display:"flex", gap:8, marginTop:16}}>
+              <button onClick={() => setStoriesOpen(false)} style={{...S.btn("#100d1a",C.muted), flex:1, border:"1px solid "+C.border}}>Cancelar</button>
+              <button onClick={gerarCardStories} style={{...S.btn(C.gold,"#100d1a"), flex:1, fontWeight:800}}>Baixar imagem</button>
             </div>
           </div>
         </div>
