@@ -582,13 +582,12 @@ export default function App() {
     const recF   = monthTxs.filter(t => t.type==="receita" && passaFiltro(t)).reduce((s,t)=>s+t.value,0);
     const despF  = monthTxs.filter(t => t.type==="despesa" && passaFiltro(t)).reduce((s,t)=>s+t.value,0);
     const invF   = monthTxs.filter(t => t.type==="investimento" && passaFiltro(t) && !t.investInicial).reduce((s,t)=>s+t.value,0);
-    const fixedF = monthTxs.filter(t => t.type==="despesa" && t.fixed && passaFiltro(t)).reduce((s,t)=>s+t.value,0);
-    const varF   = monthTxs.filter(t => t.type==="despesa" && !t.fixed && passaFiltro(t)).reduce((s,t)=>s+t.value,0);
-    const porCat = monthTxs.filter(t => t.type==="despesa" && passaFiltro(t)).reduce((a,t) => {a[t.category]=(a[t.category]||0)+t.value; return a;}, {});
-    const catList = Object.entries(porCat).sort((a,b) => b[1]-a[1]);
-    const legenda = filtro === "pagos" ? " (so pagos)" : filtro === "aberto" ? " (so em aberto)" : " (pagos + em aberto)";
+    const fixosF = monthTxs.filter(t => t.type==="despesa" && t.fixed && passaFiltro(t)).sort((a,b)=>b.value-a.value);
+    const varsF  = monthTxs.filter(t => t.type==="despesa" && !t.fixed && passaFiltro(t)).sort((a,b)=>b.value-a.value);
+    const legenda = filtro === "pagos" ? "Somente pagos" : filtro === "aberto" ? "Somente em aberto" : "Pagos + em aberto";
 
     const doc = new jsPDF();
+    const pageW = 210;
     let y = 22;
     doc.setFontSize(18);
     doc.setTextColor(200,168,75);
@@ -596,28 +595,48 @@ export default function App() {
     y += 7;
     doc.setFontSize(10);
     doc.setTextColor(120,120,120);
-    doc.text(legenda.trim(), 14, y);
+    doc.text(legenda, 14, y);
     y += 6;
     doc.setDrawColor(200,168,75);
     doc.line(14, y, 196, y);
     y += 10;
+
     doc.setFontSize(11);
     doc.setTextColor(40,40,40);
     doc.text("Receitas: " + fmt(recF), 14, y); y += 7;
     doc.text("Despesas: " + fmt(despF), 14, y); y += 7;
     doc.text("Investido: " + fmt(invF), 14, y); y += 7;
-    doc.setFont(undefined, "bold");
-    doc.text("Saldo: " + fmt(recF - despF - invF), 14, y); y += 10;
-    doc.setFont(undefined, "normal");
-    doc.text("Gastos Fixos: " + fmt(fixedF) + "   Gastos Variaveis: " + fmt(varF), 14, y); y += 10;
-    doc.setFontSize(13);
-    doc.text("Gastos por categoria", 14, y); y += 8;
-    doc.setFontSize(10);
-    if (catList.length === 0) { doc.text("Sem despesas neste filtro.", 18, y); y += 6; }
-    catList.forEach(([nome,valor]) => {
-      if (y > 280) { doc.addPage(); y = 20; }
-      doc.text(nome + ": " + fmt(valor), 18, y); y += 6;
-    });
+    if (filtro === "todos") {
+      doc.setFont(undefined, "bold");
+      doc.text("Saldo: " + fmt(recF - despF - invF), 14, y); y += 7;
+      doc.setFont(undefined, "normal");
+    }
+    y += 6;
+
+    const listaComTitulo = (titulo, cor, itens) => {
+      if (y > 265) { doc.addPage(); y = 20; }
+      doc.setFontSize(13);
+      doc.setTextColor(...cor);
+      const total = itens.reduce((s,t)=>s+t.value,0);
+      doc.text(titulo + " - " + fmt(total), 14, y);
+      y += 8;
+      doc.setFontSize(10);
+      doc.setTextColor(40,40,40);
+      if (itens.length === 0) {
+        doc.text("Nenhum lancamento.", 18, y); y += 6;
+      }
+      itens.forEach(t => {
+        if (y > 280) { doc.addPage(); y = 20; }
+        const status = t.paid === false ? "  (em aberto)" : "";
+        doc.text(t.desc + status, 18, y);
+        doc.text(fmt(t.value), 175, y, {align:"right"});
+        y += 6;
+      });
+      y += 6;
+    };
+
+    listaComTitulo("Gastos Fixos", [139,92,246], fixosF);
+    listaComTitulo("Gastos Variaveis", [249,115,22], varsF);
     doc.save("relatorio_casalrico_" + month + "_" + filtro + ".pdf");
   };
 
