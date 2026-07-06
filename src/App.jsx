@@ -783,14 +783,17 @@ export default function App() {
 
       {/* TOTAIS */}
       <div style={{background:"rgba(200,168,75,0.04)", borderBottom:"1px solid rgba(200,168,75,0.08)", padding:"8px 16px", overflowX:"auto"}}>
-        <div style={{maxWidth:960, margin:"0 auto", display:"flex", gap:18, flexWrap:"nowrap"}}>
-          {[["Receitas",totalRec,C.green],["Despesas",totalDesp,C.red],["Investido",totalInv,C.blue],["Saldo",saldoGeral,saldoGeral>=0?C.green:C.red]].map(([l,v,col]) => (
-            <div key={l} style={{display:"flex", gap:6, alignItems:"center", flexShrink:0}}>
-              <div style={{width:5, height:5, borderRadius:"50%", background:col}}/>
-              <span style={{fontSize:10.5, color:C.muted}}>{l}</span>
-              <span style={{fontSize:12, fontWeight:700, color:col}}>{fmtV(v)}</span>
-            </div>
-          ))}
+        <div style={{maxWidth:960, margin:"0 auto", display:"flex", gap:14, alignItems:"center", flexWrap:"nowrap"}}>
+          <span style={{fontSize:9, color:C.gold, fontWeight:700, textTransform:"uppercase", letterSpacing:0.6, flexShrink:0}}>Acumulado 2026:</span>
+          <div style={{display:"flex", gap:18, flexWrap:"nowrap"}}>
+            {[["Receitas",totalRec,C.green],["Despesas",totalDesp,C.red],["Investido",totalInv,C.blue],["Saldo",saldoGeral,saldoGeral>=0?C.green:C.red]].map(([l,v,col]) => (
+              <div key={l} style={{display:"flex", gap:6, alignItems:"center", flexShrink:0}}>
+                <div style={{width:5, height:5, borderRadius:"50%", background:col}}/>
+                <span style={{fontSize:10.5, color:C.muted}}>{l}</span>
+                <span style={{fontSize:12, fontWeight:700, color:col}}>{fmtV(v)}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
