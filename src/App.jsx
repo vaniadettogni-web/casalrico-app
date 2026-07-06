@@ -103,6 +103,7 @@ async function askClaude(messages, sys) {
     body: JSON.stringify({ system: sys, messages }),
   });
   const d = await r.json();
+  if (d.error) throw new Error(typeof d.error === "string" ? d.error : (d.error.message || "erro na API"));
   return d.content?.map(b => b.text || "").join("") || "";
 }
 
@@ -657,16 +658,17 @@ export default function App() {
 
       if (match) {
         const t = JSON.parse(match[0]);
-        const base = {...t, id:Date.now(), month:(t.date||today()).slice(0,7), installments:parseInt(t.installments)||1};
+        const dt = t.date || today();
+        const base = {...t, id:Date.now(), month:dt.slice(0,7), installments:parseInt(t.installments)||1, paid: dt <= today()};
         setTxs(p => [...p, ...splitInstallments(base, base.installments)]);
         const conta = CONTAS.find(c => c.id===t.banco)?.nome || "";
         setMsgs(p => [...p, {role:"assistant", content:"OK! "+t.desc+" - "+fmtV(t.value)+"\n"+t.category+(t.subcategory ? " > "+t.subcategory : "")+"\n"+t.payMethod+" - "+conta}]);
         showToast(t.desc + " registrado!");
       } else {
-        setMsgs(p => [...p, {role:"assistant", content: reply || "Nao entendi. Tente: gasolina 200 debito Frank"}]);
+        setMsgs(p => [...p, {role:"assistant", content: reply || "Nao consegui falar com a IA agora (verifique a chave ANTHROPIC_API_KEY na Vercel). Tente: gasolina 200 debito Frank"}]);
       }
-    } catch(_) {
-      setMsgs(p => [...p, {role:"assistant", content:"Erro. Tente novamente."}]);
+    } catch(err) {
+      setMsgs(p => [...p, {role:"assistant", content:"Erro: "+(err.message||"tente novamente")}]);
     }
 
     setAiLoading(false);
