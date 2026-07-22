@@ -12,8 +12,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { system, messages } = req.body || {};
-
+    const { system, messages, max_tokens } = req.body || {};
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -23,7 +22,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: "claude-sonnet-5",
-        max_tokens: 400,
+        max_tokens: max_tokens || 400,
         system,
         messages,
       }),
