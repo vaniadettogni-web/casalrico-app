@@ -111,15 +111,15 @@ const splitInstallments = (base, n) => {
   });
 };
 
-async function askClaude(messages, sys) {
+async function askClaude(messages, sys, maxTokens) {
   // Chama nossa propria funcao serverless (/api/chat.js) em vez da API da Anthropic
   // diretamente do navegador. Chamar api.anthropic.com direto do front-end nao
   // funciona em producao (CORS + a chave nunca deveria ficar exposta no navegador).
   const r = await fetch("/api/chat", {
     method: "POST",
     headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ system: sys, messages }),
-  });
+    body: JSON.stringify({ system: sys, messages , max_tokens: maxTokens}),
+  });  
   const d = await r.json();
   if (d.error) throw new Error(typeof d.error === "string" ? d.error : (d.error.message || "erro na API"));
   return d.content?.map(b => b.text || "").join("") || "";
@@ -453,6 +453,11 @@ export default function App() {
   const [demoMode, setDemoMode] = useState(false);
   const demoBackupRef = useRef(null);
   const importInputRef = useRef(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importStep, setImportStep] = useState("conta");
+  const [importConta, setImportConta] = useState(CONTAS[0].id);
+  const [importPendentes, setImportPendentes] = useState([]);
+  const [importErro, setImportErro] = useState("");
   const [storiesOpen, setStoriesOpen] = useState(false);
   const [storiesFrase, setStoriesFrase] = useState("Fechamos o mes no verde!");
   const storiesCanvasRef = useRef(null);
@@ -537,7 +542,105 @@ export default function App() {
     };
     reader.readAsText(file);
   };
+const extrairTextoPdf = async (file) => {
+    const buf = await file.arrayBuffer();
+    const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
+    let texto = "";
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      texto += content.items.map(it => it.str).join(" ") + "\n";
+    }
+    return texto;
+  };
 
+  const parseExtratoComIA = async (textoExtrato) => {
+    const sys = "Voce le extratos bancarios brasileiros e devolve APENAS um JSON array, sem texto antes ou depois, no formato: [{\"date\":\"AAAA-MM-DD\",\"desc\":\"descricao curta\",\"value\":123.45,\"tipo\":\"entrada\"}] Regras: tipo e entrada quando o valor foi recebido ou creditado (Pix Recebido, deposito) e saida quando foi debitado, pago ou enviado. value e sempre positivo. NAO inclua linhas de Saldo, Saldo Anterior ou totais - somente lancamentos individuais. Se o dia estiver numa linha e o mes/ano em outra, combine para formar a data completa. Se nao identificar nenhum lancamento, devolva [].";
+    const resp = await askClaude([{ role: "user", content: "Texto do extrato:\n\n" + textoExtrato.slice(0, 12000) }], sys, 4096);
+    const limpo = resp.replace(/```json?|```/g, "").trim();
+    const match = limpo.match(/\[[\s\S]*\]/);
+    if (!match) return [];
+    try { return JSON.parse(match[0]); } catch (_) { return []; }
+  };
+
+  const iniciarImportacao = async (file) => {
+    setImportErro("");
+    setImportStep("loading");
+    try {
+      const texto = await extrairTextoPdf(file);
+      const lancamentos = await parseExtratoComIA(texto);
+      if (!lancamentos.length) {
+        setImportErro("Nao consegui identificar lancamentos nesse PDF. Tente outro arquivo.");
+        setImportStep("upload");
+        return;
+      }
+      const jaExistentes = new Set(
+        txs.filter(t => t.banco === importConta).map(t => t.date + "|" + Math.abs(t.value).toFixed(2))
+      );
+      const pendentes = lancamentos
+        .filter(l => l.date && typeof l.value === "number")
+        .filter(l => !jaExistentes.has(l.date + "|" + Math.abs(l.value).toFixed(2)))
+        .map((l, i) => {
+          const desp = l.tipo !== "entrada";
+          const descLower = (l.desc || "").toLowerCase();
+          const payMethod = descLower.includes("pix") ? "Pix"
+            : (descLower.includes("debito") || descLower.includes("automatico")) ? "Debito"
+            : "Pix";
+          return {
+            _tmpId: "pend_" + Date.now() + "_" + i,
+            date: l.date,
+            desc: l.desc || "Lancamento importado",
+            value: Math.abs(l.value),
+            type: desp ? "despesa" : "receita",
+            category: desp ? "Outros" : undefined,
+            subcategory: desp ? (CATS["Outros"][0]) : "Renda Extra",
+            payMethod,
+            banco: importConta,
+          };
+        });
+      setImportPendentes(pendentes);
+      setImportStep(pendentes.length ? "revisao" : "vazio");
+    } catch (err) {
+      setImportErro("Erro ao ler o PDF: " + (err.message || "tente novamente"));
+      setImportStep("upload");
+    }
+  };
+
+  const atualizarPendente = (tmpId, campo, valor) => {
+    setImportPendentes(p => p.map(item => item._tmpId === tmpId ? {
+      ...item,
+      [campo]: valor,
+      ...(campo === "category" ? { subcategory: CATS[valor]?.[0] || "Outros" } : {}),
+    } : item));
+  };
+
+  const lancarPendente = (tmpId) => {
+    const item = importPendentes.find(p => p._tmpId === tmpId);
+    if (!item) return;
+    const base = { ...item, id: Date.now() + Math.random(), month: item.date.slice(0,7), installments: 1, paid: item.date <= today() };
+    delete base._tmpId;
+    setTxs(p => [...p, base]);
+    setImportPendentes(p => p.filter(x => x._tmpId !== tmpId));
+    showToast(item.desc + " lancado!");
+  };
+
+  const lancarTodosPendentes = () => {
+    const novos = importPendentes.map(item => {
+      const base = { ...item, id: Date.now() + Math.random(), month: item.date.slice(0,7), installments: 1, paid: item.date <= today() };
+      delete base._tmpId;
+      return base;
+    });
+    setTxs(p => [...p, ...novos]);
+    setImportPendentes([]);
+    showToast(novos.length + " lancamentos importados!");
+  };
+
+  const fecharImportacao = () => {
+    setImportOpen(false);
+    setImportStep("conta");
+    setImportPendentes([]);
+    setImportErro("");
+  };
   const toggleDemoMode = () => {
     if (!demoMode) {
       demoBackupRef.current = { txs, goals, recorrentes, overrides };
@@ -977,6 +1080,94 @@ export default function App() {
 
       )}
 
+{importOpen && (
+        <div style={{position:"fixed", inset:0, background:"rgba(5,4,10,0.72)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:300, padding:16}}>
+          <div style={{background:"linear-gradient(165deg, #1c1830, #14111d)", border:"1px solid rgba(200,168,75,0.12)", borderRadius:24, padding:22, width:"100%", maxWidth:520, maxHeight:"90vh", overflowY:"auto", boxShadow:"0 24px 60px -20px rgba(0,0,0,0.7)"}}>
+            <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16}}>
+              <div style={{fontWeight:800, fontSize:17, color:"#F0E6D2", fontFamily:"'Fraunces', serif"}}>Importar Extrato Bancario</div>
+              <button onClick={fecharImportacao} style={{background:"none", border:"none", color:C.muted, fontSize:20, cursor:"pointer"}}>x</button>
+            </div>
+
+            {importStep === "conta" && (
+              <div>
+                <Lbl>De qual conta e esse extrato?</Lbl>
+                <select value={importConta} onChange={e => setImportConta(e.target.value)} style={{...S.sel, marginBottom:16}}>
+                  {CONTAS.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+                <button onClick={() => setImportStep("upload")} style={{...S.btn(C.gold, "#0F0F1A"), width:"100%", padding:"11px 0"}}>Continuar</button>
+              </div>
+            )}
+
+            {importStep === "upload" && (
+              <div>
+                <Lbl>Conta selecionada: {CONTAS.find(c => c.id === importConta)?.nome}</Lbl>
+                <div style={{fontSize:12, color:C.muted, marginBottom:12}}>Envie o PDF do extrato dessa conta. So sao lancados os valores que ainda nao estao no app.</div>
+                {importErro && <div style={{background:C.red+"18", color:C.red, borderRadius:10, padding:"9px 12px", fontSize:12, marginBottom:12}}>{importErro}</div>}
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={e => e.target.files[0] && iniciarImportacao(e.target.files[0])}
+                  style={{...S.inp, padding:10}}
+                />
+                <button onClick={() => setImportStep("conta")} style={{...S.btn("#100d1a", "#8a8095"), width:"100%", padding:"11px 0", marginTop:12, border:"1px solid #1a2d4a"}}>Voltar</button>
+              </div>
+            )}
+
+            {importStep === "loading" && (
+              <div style={{textAlign:"center", padding:"30px 0", color:C.sub, fontSize:13}}>Lendo o extrato...</div>
+            )}
+
+            {importStep === "vazio" && (
+              <div style={{textAlign:"center", padding:"20px 0"}}>
+                <div style={{color:C.sub, fontSize:13, marginBottom:16}}>Todos os lancamentos desse extrato ja estavam no app. Nada novo pra importar.</div>
+                <button onClick={fecharImportacao} style={{...S.btn(C.gold, "#0F0F1A"), width:"100%", padding:"11px 0"}}>Fechar</button>
+              </div>
+            )}
+
+            {importStep === "revisao" && (
+              <div>
+                <div style={{fontSize:12, color:C.muted, marginBottom:12}}>
+                  {importPendentes.length} lancamento(s) nao encontrado(s) no app. Confira categoria/subcategoria e lance:
+                </div>
+                {importPendentes.map(item => (
+                  <div key={item._tmpId} style={{background:"#100d1a", borderRadius:14, padding:12, marginBottom:10}}>
+                    <div style={{display:"flex", justifyContent:"space-between", marginBottom:8, gap:8}}>
+                      <div style={{fontSize:13, fontWeight:600, flex:1, minWidth:0}}>{item.desc}</div>
+                      <div style={{fontSize:13, fontWeight:700, color: item.type==="receita" ? C.green : C.red, whiteSpace:"nowrap"}}>
+                        {item.type==="receita"?"+":"-"}{fmt(item.value)}
+                      </div>
+                    </div>
+                    <div style={{fontSize:10.5, color:C.muted, marginBottom:8}}>{new Date(item.date+"T12:00").toLocaleDateString("pt-BR")}</div>
+                    {item.type === "despesa" ? (
+                      <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:10}}>
+                        <select value={item.category} onChange={e => atualizarPendente(item._tmpId, "category", e.target.value)} style={{...S.sel, fontSize:12, padding:"7px 9px"}}>
+                          {Object.keys(CATS).map(c => <option key={c}>{c}</option>)}
+                        </select>
+                        <select value={item.subcategory} onChange={e => atualizarPendente(item._tmpId, "subcategory", e.target.value)} style={{...S.sel, fontSize:12, padding:"7px 9px"}}>
+                          {(CATS[item.category]||["Outros"]).map(sc => <option key={sc}>{sc}</option>)}
+                        </select>
+                      </div>
+                    ) : (
+                      <div style={{marginBottom:10}}>
+                        <select value={item.subcategory} onChange={e => atualizarPendente(item._tmpId, "subcategory", e.target.value)} style={{...S.sel, fontSize:12, padding:"7px 9px"}}>
+                          {["Salario Frank","Salario Vania","Freelance","Dividendos","Rendimento","Renda Extra","Outros"].map(o => <option key={o}>{o}</option>)}
+                        </select>
+                      </div>
+                    )}
+                    <button onClick={() => lancarPendente(item._tmpId)} style={{...S.btn(C.green), width:"100%", padding:"8px 0", fontSize:12}}>Lancar</button>
+                  </div>
+                ))}
+                <div style={{display:"flex", gap:8, marginTop:6}}>
+                  <button onClick={fecharImportacao} style={{...S.btn("#100d1a", "#8a8095"), flex:1, padding:"11px 0", border:"1px solid #1a2d4a"}}>Fechar</button>
+                  {importPendentes.length > 0 && (
+                    <button onClick={lancarTodosPendentes} style={{...S.btn(C.gold, "#0F0F1A"), flex:1, padding:"11px 0", fontWeight:800}}>Lancar todos ({importPendentes.length})</button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}     
       {demoMode && (
         <div style={{position:"sticky", top:0, zIndex:150, background:"linear-gradient(90deg,#C8A84B,#E8D4A0)", color:"#100d1a", textAlign:"center", fontWeight:800, fontSize:12, padding:"7px 10px"}}>
           MODO DEMONSTRACAO — dados ficticios pra prints. Nao lance nada real agora.
@@ -1288,6 +1479,7 @@ export default function App() {
                 </select>
               </div>
               <button onClick={() => setAddOpen(true)} style={{...S.btn(C.green), fontSize:12, padding:"7px 13px"}}>+ Nova</button>
+              <button onClick={() => setImportOpen(true)} style={{...S.btn(C.blue), fontSize:12, padding:"7px 13px"}}>Importar Extrato</button>
               <select value={pdfFiltro} onChange={e => setPdfFiltro(e.target.value)} style={{...S.sel, width:"auto", fontSize:12, padding:"7px 8px"}}>
                 <option value="todos">Pagos + Em aberto</option>
                 <option value="pagos">So pagos</option>
