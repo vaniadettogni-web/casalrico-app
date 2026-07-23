@@ -556,7 +556,7 @@ const extrairTextoPdf = async (file) => {
 
   const parseExtratoComIA = async (textoExtrato) => {
     const sys = "Voce le extratos bancarios brasileiros e devolve APENAS um JSON array, sem texto antes ou depois, no formato: [{\"date\":\"AAAA-MM-DD\",\"desc\":\"descricao curta\",\"value\":123.45,\"tipo\":\"entrada\"}] Regras: tipo e entrada quando o valor foi recebido ou creditado (Pix Recebido, deposito) e saida quando foi debitado, pago ou enviado. value e sempre positivo. NAO inclua linhas de Saldo, Saldo Anterior ou totais - somente lancamentos individuais. Se o dia estiver numa linha e o mes/ano em outra, combine para formar a data completa. Se nao identificar nenhum lancamento, devolva [].";
-    const resp = await askClaude([{ role: "user", content: "Texto do extrato:\n\n" + textoExtrato.slice(0, 12000) }], sys, 4096);
+    const resp = await askClaude([{ role: "user", content: "Texto do extrato:\n\n" + textoExtrato.slice(0, 30000) }], sys, 8000);
     const limpo = resp.replace(/```json?|```/g, "").trim();
     const match = limpo.match(/\[[\s\S]*\]/);
     if (!match) return [];
