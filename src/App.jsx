@@ -614,9 +614,7 @@ const extrairTextoPdf = async (file) => {
     } : item));
   };
 
-  const lancarPendente = (tmpId) => 
-    setImportPendentes(p => p.filter(x => x._tmpId !== tmpId));
-  };
+  const lancarPendente = (tmpId) =>  {
     const item = importPendentes.find(p => p._tmpId === tmpId);
     if (!item) return;
     const base = { ...item, id: Date.now() + Math.random(), month: item.date.slice(0,7), installments: 1, paid: item.date <= today() };
@@ -624,7 +622,8 @@ const extrairTextoPdf = async (file) => {
     setTxs(p => [...p, base]);
     setImportPendentes(p => p.filter(x => x._tmpId !== tmpId));
     showToast(item.desc + " lancado!");
-  };const descartarPendente = (tmpId) => {
+  };
+  const descartarPendente = (tmpId) => {
     setImportPendentes(p => p.filter(x => x._tmpId !== tmpId));
   };
 
