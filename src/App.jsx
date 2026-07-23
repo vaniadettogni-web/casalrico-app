@@ -614,7 +614,9 @@ const extrairTextoPdf = async (file) => {
     } : item));
   };
 
-  const lancarPendente = (tmpId) => {
+  const lancarPendente = (tmpId) => 
+    setImportPendentes(p => p.filter(x => x._tmpId !== tmpId));
+  };
     const item = importPendentes.find(p => p._tmpId === tmpId);
     if (!item) return;
     const base = { ...item, id: Date.now() + Math.random(), month: item.date.slice(0,7), installments: 1, paid: item.date <= today() };
@@ -622,6 +624,8 @@ const extrairTextoPdf = async (file) => {
     setTxs(p => [...p, base]);
     setImportPendentes(p => p.filter(x => x._tmpId !== tmpId));
     showToast(item.desc + " lancado!");
+  };const descartarPendente = (tmpId) => {
+    setImportPendentes(p => p.filter(x => x._tmpId !== tmpId));
   };
 
   const lancarTodosPendentes = () => {
@@ -1154,7 +1158,10 @@ const extrairTextoPdf = async (file) => {
                         </select>
                       </div>
                     )}
-                    <button onClick={() => lancarPendente(item._tmpId)} style={{...S.btn(C.green), width:"100%", padding:"8px 0", fontSize:12}}>Lancar</button>
+                    <div style={{display:"flex", gap:8}}>
+                      <button onClick={() => descartarPendente(item._tmpId)} style={{...S.btn("#100d1a", "#8a8095"), flex:1, padding:"8px 0", fontSize:12, border:"1px solid #1a2d4a"}}>Descartar</button>
+                      <button onClick={() => lancarPendente(item._tmpId)} style={{...S.btn(C.green), flex:1, padding:"8px 0", fontSize:12}}>Lancar</button>
+                    </div>
                   </div>
                 ))}
                 <div style={{display:"flex", gap:8, marginTop:6}}>
