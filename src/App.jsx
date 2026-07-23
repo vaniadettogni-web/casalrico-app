@@ -1598,7 +1598,7 @@ const extrairTextoPdf = async (file) => {
                       const aberto = fixedItems.filter(t => !paidFilter(t));
                       return (
                         <>
-                          {pagos.length > 0 && (
+                          {pdfFiltro !== "aberto" && pagos.length > 0 && (
                             <div style={{marginBottom: aberto.length ? 10 : 0}}>
                               <div style={{fontSize:9.5, color:C.green, fontWeight:700, textTransform:"uppercase", letterSpacing:0.6, marginBottom:4}}>Pagos - {fmtV(pagos.reduce((s,t)=>s+t.value,0))}</div>
                               {pagos.map(t => (
@@ -1609,7 +1609,7 @@ const extrairTextoPdf = async (file) => {
                               ))}
                             </div>
                           )}
-                          {aberto.length > 0 && (
+                          {pdfFiltro !== "pagos" && aberto.length > 0 && (
                             <div>
                               <div style={{fontSize:9.5, color:C.yellow, fontWeight:700, textTransform:"uppercase", letterSpacing:0.6, marginBottom:4}}>Em aberto - {fmtV(aberto.reduce((s,t)=>s+t.value,0))}</div>
                               {aberto.map(t => (
@@ -1638,7 +1638,7 @@ const extrairTextoPdf = async (file) => {
                       const aberto = varItems.filter(t => !paidFilter(t));
                       return (
                         <>
-                          {pagos.length > 0 && (
+                          {pdfFiltro !== "aberto" && pagos.length > 0 && (
                             <div style={{marginBottom: aberto.length ? 10 : 0}}>
                               <div style={{fontSize:9.5, color:C.green, fontWeight:700, textTransform:"uppercase", letterSpacing:0.6, marginBottom:4}}>Pagos - {fmtV(pagos.reduce((s,t)=>s+t.value,0))}</div>
                               {pagos.map(t => (
@@ -1649,7 +1649,7 @@ const extrairTextoPdf = async (file) => {
                               ))}
                             </div>
                           )}
-                          {aberto.length > 0 && (
+                          {pdfFiltro !== "pagos" && aberto.length > 0 && (
                             <div>
                               <div style={{fontSize:9.5, color:C.yellow, fontWeight:700, textTransform:"uppercase", letterSpacing:0.6, marginBottom:4}}>Em aberto - {fmtV(aberto.reduce((s,t)=>s+t.value,0))}</div>
                               {aberto.map(t => (
